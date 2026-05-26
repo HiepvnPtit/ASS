@@ -1,0 +1,236 @@
+import {
+  Injectable,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, Not } from 'typeorm';
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
+import { JwtService } from '@nestjs/jwt';
+import { NguoiDung } from '../../entities/nguoi-dung.entity';
+import { KhachHang } from '../../entities/khach-hang.entity';
+import { TaiXe } from '../../entities/tai-xe.entity';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+
+@Injectable()
+export class SimpleAuthService {
+  constructor(
+    @InjectRepository(NguoiDung)
+    private readonly usersRepo: Repository<NguoiDung>,
+    @InjectRepository(KhachHang)
+    private readonly customersRepo: Repository<KhachHang>,
+    @InjectRepository(TaiXe)
+    private readonly driversRepo: Repository<TaiXe>,
+    private readonly jwtService: JwtService,
+  ) {}
+
+  async register(dto: RegisterDto) {
+    try {
+      // Kiểm tra email hoặc số điện thoại đã tồn tại
+      const existing = await this.usersRepo.findOne({
+        where: [{ email: dto.email }, { soDienThoai: dto.soDienThoai }],
+      });
+      if (existing) {
+        throw new BadRequestException('Email or phone already exists');
+      }
+
+      const hashed = await bcrypt.hash(dto.matKhau, 10);
+
+      // === BACKEND TỰ SINH: maNguoiDung ===
+      const maNguoiDung = `ND-${uuidv4()}`;
+
+      const user = this.usersRepo.create({
+        maNguoiDung,
+        hoTen: dto.hoTen,
+        soDienThoai: dto.soDienThoai,
+        email: dto.email ?? undefined,
+        matKhau: hashed,
+        vaiTro: dto.vaiTro,
+      });
+
+      await this.usersRepo.save(user);
+
+      const publicUser = {
+        maNguoiDung: user.maNguoiDung,
+        hoTen: user.hoTen,
+        soDienThoai: user.soDienThoai,
+        email: user.email ?? null,
+        vaiTro: user.vaiTro,
+        trangThai: user.trangThai,
+        ngayTao: user.ngayTao,
+      };
+
+      // === Xử lý vai trò CUSTOMER ===
+      if (dto.vaiTro === 'CUSTOMER') {
+        // BACKEND TỰ SINH: maKhachHang
+        const maKhachHang = `KH-${uuidv4()}`;
+        const kh = this.customersRepo.create({
+          maKhachHang,
+          nguoiDung: user,
+        });
+        await this.customersRepo.save(kh);
+        return {
+          user: publicUser,
+          khachHang: {
+            maKhachHang: kh.maKhachHang,
+            diaChiMacDinh: kh.diaChiMacDinh ?? null,
+            ghiChu: kh.ghiChu ?? null,
+          },
+        };
+      }
+
+      // === Xử lý vai trò DRIVER ===
+      if (dto.vaiTro === 'DRIVER') {
+        // BACKEND TỰ SINH: maTaiXe
+        const maTaiXe = `TX-${uuidv4()}`;
+        const tx = this.driversRepo.create({
+          maTaiXe,
+          nguoiDung: user,
+          soGiayPhepLaiXe: dto.soGiayPhepLaiXe,
+          canCuocCongDan: dto.canCuocCongDan,
+          hanGiayPhepLaiXe: dto.hanGiayPhepLaiXe
+            ? new Date(dto.hanGiayPhepLaiXe)
+            : undefined,
+        });
+        await this.driversRepo.save(tx);
+        return {
+          user: publicUser,
+          taiXe: {
+            maTaiXe: tx.maTaiXe,
+            trangThaiHoatDong: tx.trangThaiHoatDong,
+            trangThaiXacThuc: tx.trangThaiXacThuc,
+          },
+        };
+      }
+
+      return { user: publicUser };
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async login(dto: LoginDto) {
+    const user = await this.usersRepo.findOne({ where: { email: dto.email } });
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+
+    const ok = await bcrypt.compare(dto.matKhau, user.matKhau);
+    if (!ok) throw new UnauthorizedException('Invalid credentials');
+
+    const payload = {
+      id: user.maNguoiDung,
+      maNguoiDung: user.maNguoiDung,
+      sessionId: user.maNguoiDung,
+      vaiTro: user.vaiTro,
+      role: { id: user.vaiTro, name: user.vaiTro },
+    };
+    const token = this.jwtService.sign(payload);
+    return { token };
+  }
+
+  /**
+   * Update user profile - self-service endpoint for PATCH /auth/me
+   * @param maNguoiDung - User ID from JWT token
+   * @param updateProfileDto - Profile update data (all fields optional)
+   * @returns Updated user object without password field
+   */
+  async updateProfile(maNguoiDung: string, updateProfileDto: UpdateProfileDto) {
+    // Find user
+    const user = await this.usersRepo.findOne({
+      where: { maNguoiDung },
+    });
+    if (!user) throw new BadRequestException('User not found');
+
+    // Pre-validation: Check if email or phone already exists (excluding current user)
+    if (updateProfileDto.email || updateProfileDto.soDienThoai) {
+      // Check email if provided
+      if (updateProfileDto.email) {
+        const emailExists = await this.usersRepo.findOne({
+          where: {
+            email: updateProfileDto.email,
+            maNguoiDung: Not(maNguoiDung),
+          },
+        });
+        if (emailExists) {
+          throw new BadRequestException(
+            'Số điện thoại hoặc email này đã được sử dụng bởi tài khoản khác.',
+          );
+        }
+      }
+
+      // Check phone number if provided
+      if (updateProfileDto.soDienThoai) {
+        const phoneExists = await this.usersRepo.findOne({
+          where: {
+            soDienThoai: updateProfileDto.soDienThoai,
+            maNguoiDung: Not(maNguoiDung),
+          },
+        });
+        if (phoneExists) {
+          throw new BadRequestException(
+            'Số điện thoại hoặc email này đã được sử dụng bởi tài khoản khác.',
+          );
+        }
+      }
+    }
+
+    // Hash password if provided
+    if (updateProfileDto.matKhau) {
+      user.matKhau = await bcrypt.hash(updateProfileDto.matKhau, 10);
+    }
+
+    // Update other fields
+    if (updateProfileDto.hoTen) user.hoTen = updateProfileDto.hoTen;
+    if (updateProfileDto.soDienThoai)
+      user.soDienThoai = updateProfileDto.soDienThoai;
+    if (updateProfileDto.email) user.email = updateProfileDto.email;
+    if (updateProfileDto.avatar) user.avatar = updateProfileDto.avatar;
+
+    // Save updated user
+    await this.usersRepo.save(user);
+
+    // Return user without password
+    return {
+      maNguoiDung: user.maNguoiDung,
+      hoTen: user.hoTen,
+      soDienThoai: user.soDienThoai,
+      email: user.email ?? null,
+      vaiTro: user.vaiTro,
+      trangThai: user.trangThai,
+      avatar: user.avatar ?? null,
+      ngayTao: user.ngayTao,
+      updatedAt: user.updatedAt,
+    };
+  }
+
+  /**
+   * Get current user profile - GET /auth/me endpoint
+   * @param maNguoiDung - User ID from JWT token
+   * @returns User object without password field
+   */
+  async getProfile(maNguoiDung: string) {
+    const user = await this.usersRepo.findOne({
+      where: { maNguoiDung },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    // Return user without password
+    return {
+      maNguoiDung: user.maNguoiDung,
+      hoTen: user.hoTen,
+      soDienThoai: user.soDienThoai,
+      email: user.email ?? null,
+      vaiTro: user.vaiTro,
+      trangThai: user.trangThai,
+      avatar: user.avatar ?? null,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      ngayTao: user.ngayTao,
+    };
+  }
+}
