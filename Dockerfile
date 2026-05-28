@@ -1,31 +1,29 @@
-# Bước 1: Build (Sử dụng node 20 để ổn định và nhẹ hơn)
+# Bước 1: Build
 FROM node:20-alpine AS builder
-
 WORKDIR /usr/src/app
-
-# Chỉ copy file package để tận dụng cache của Docker
 COPY package*.json ./
 RUN npm install
-
-# Copy toàn bộ code và thực hiện build
 COPY . .
 RUN npm run build
 
-# Bước 2: Run (Tạo image nhẹ nhất có thể để tiết kiệm RAM)
+# Bước 2: Run
 FROM node:20-alpine
-
 WORKDIR /usr/src/app
 
-# Copy các file cần thiết từ bước builder
+# Copy dependencies và bản build
 COPY --from=builder /usr/src/app/package*.json ./
 COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY --from=builder /usr/src/app/dist ./dist
 
-# Biến môi trường mặc định
-ENV NODE_ENV=production
+# QUAN TRỌNG: Copy thư mục i18n vào đúng nơi app đang tìm
+# Lỗi báo tìm ở /usr/src/app/src/i18n/ nên chúng ta copy vào đúng chỗ đó
+COPY --from=builder /usr/src/app/src/i18n ./src/i18n
 
-# Mở cổng 3000 (Render sẽ map vào cổng này)
+# Nếu project của bạn có thư mục templates (để gửi mail), hãy copy luôn
+COPY --from=builder /usr/src/app/src/mail/templates ./src/mail/templates 2>/dev/null || true
+
+ENV NODE_ENV=production
 EXPOSE 3000
 
-# Lệnh chạy thẳng vào file main đã build, bỏ qua các script chờ đợi
-CMD ["node", "dist/main"]
+# Chạy app (Sử dụng đường dẫn đã xác định ở log trước: dist/src/main)
+CMD ["node", "dist/src/main"]
