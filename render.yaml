@@ -1,0 +1,67 @@
+services:
+  - type: web
+    name: nestjs-api
+    runtime: docker
+    dockerfile: Dockerfile.render
+    buildCommand: npm install && npm run build
+    startCommand: npm run migration:run && node dist/src/main
+    
+    # Port
+    ports:
+      - port: 3000
+        protocol: http
+    
+    # Environment variables
+    envVars:
+      - key: NODE_ENV
+        value: production
+      
+      - key: PORT
+        value: 3000
+      
+      # Database (Update these with your Render database)
+      - key: DATABASE_HOST
+        fromDatabase:
+          name: postgres-db
+          property: host
+      
+      - key: DATABASE_PORT
+        fromDatabase:
+          name: postgres-db
+          property: port
+      
+      - key: DATABASE_NAME
+        fromDatabase:
+          name: postgres-db
+          property: dbName
+      
+      - key: DATABASE_USERNAME
+        fromDatabase:
+          name: postgres-db
+          property: user
+      
+      - key: DATABASE_PASSWORD
+        fromDatabase:
+          name: postgres-db
+          property: password
+      
+      # JWT Secrets
+      - key: JWT_SECRET
+        generateValue: true
+      
+      - key: JWT_EXPIRATION
+        value: 24h
+      
+      # Admin credentials (customize as needed)
+      - key: ADMIN_EMAIL
+        value: admin@app.com
+      
+      - key: ADMIN_PASSWORD
+        value: Admin@123
+
+# PostgreSQL Database (if not already created)
+databases:
+  - name: postgres-db
+    engine: postgres
+    version: '16'
+    plan: free
