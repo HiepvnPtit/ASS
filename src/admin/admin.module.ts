@@ -10,6 +10,11 @@ import { ReviewsModule } from '../reviews/reviews.module';
 
 import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
+import { AdminUsersController } from './controllers/admin-users.controller';
+import { AdminDriversController } from './controllers/admin-drivers.controller';
+import { AdminCustomersController } from './controllers/admin-customers.controller';
+import { AdminSystemVehiclesController } from './controllers/admin-system-vehicles.controller';
+import { AdminDashboardController } from './controllers/admin-dashboard.controller';
 import { AdminLoaiXeController } from './controllers/admin-loai-xe.controller';
 import { AdminBangGiaController } from './controllers/admin-bang-gia.controller';
 import { AdminVehiclesController } from './controllers/admin-vehicles.controller';
@@ -63,6 +68,12 @@ import { ChuyenDi } from '../entities/chuyen-di.entity';
   ],
   controllers: [
     AdminController,
+    // Business-specific management controllers
+    AdminUsersController,
+    AdminDriversController,
+    AdminCustomersController,
+    AdminSystemVehiclesController,
+    AdminDashboardController,
     // Admin CRUD Controllers for Full Access
     AdminLoaiXeController,
     AdminBangGiaController,

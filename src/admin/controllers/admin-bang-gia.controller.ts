@@ -36,7 +36,7 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - DELETE /admin/bang-gia/:id - Soft delete price table
  * - POST /admin/bang-gia/:id/restore - Restore deleted price table
  */
-@ApiTags('Admin - Full Access')
+@ApiTags('ADMIN - PRICE TABLE MANAGEMENT')
 @ApiBearerAuth('JWT')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles('ADMIN')

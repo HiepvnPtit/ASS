@@ -37,7 +37,7 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - DELETE /admin/reviews/:id - Soft delete review
  * - POST /admin/reviews/:id/restore - Restore deleted review
  */
-@ApiTags('Admin - Full Access')
+@ApiTags('ADMIN - REVIEW MANAGEMENT')
 @ApiBearerAuth('JWT')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles('ADMIN')

@@ -29,7 +29,7 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - DELETE /admin/loai-xe/:id - Soft delete
  * - POST /admin/loai-xe/:id/restore - Restore deleted record
  */
-@ApiTags('Admin - Full Access')
+@ApiTags('ADMIN - VEHICLE TYPE MANAGEMENT')
 @ApiBearerAuth('JWT')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles('ADMIN')

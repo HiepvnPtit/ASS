@@ -36,7 +36,7 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - DELETE /admin/trips/:id - Soft delete trip
  * - POST /admin/trips/:id/restore - Restore deleted trip
  */
-@ApiTags('Admin - Full Access')
+@ApiTags('ADMIN - TRIP MANAGEMENT')
 @ApiBearerAuth('JWT')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles('ADMIN')

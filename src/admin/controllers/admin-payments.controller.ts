@@ -36,7 +36,7 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - DELETE /admin/payments/:id - Soft delete payment
  * - POST /admin/payments/:id/restore - Restore deleted payment
  */
-@ApiTags('Admin - Full Access')
+@ApiTags('ADMIN - PAYMENT MANAGEMENT')
 @ApiBearerAuth('JWT')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles('ADMIN')

@@ -34,14 +34,14 @@ export class CreateAdminUser1700000000000 implements MigrationInterface {
       )
       `,
       [
-        'ND_ADMIN_001',        // ma_nguoi_dung
-        'Admin System',         // ho_ten
-        '0000000000',          // so_dien_thoai
-        'admin@app.com',       // email
-        hashedPassword,        // mat_khau (hashed)
-        'ADMIN',               // vai_tro
-        'ACTIVE',              // trang_thai
-      ]
+        'ND_ADMIN_001', // ma_nguoi_dung
+        'Admin System', // ho_ten
+        '0000000000', // so_dien_thoai
+        'admin@app.com', // email
+        hashedPassword, // mat_khau (hashed)
+        'ADMIN', // vai_tro
+        'ACTIVE', // trang_thai
+      ],
     );
 
     console.log('✅ Admin user created successfully!');
@@ -52,9 +52,8 @@ export class CreateAdminUser1700000000000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Xóa admin user khi rollback
-    await queryRunner.query(
-      `DELETE FROM nguoi_dung WHERE ma_nguoi_dung = $1`,
-      ['ND_ADMIN_001']
-    );
+    await queryRunner.query(`DELETE FROM nguoi_dung WHERE ma_nguoi_dung = $1`, [
+      'ND_ADMIN_001',
+    ]);
   }
 }

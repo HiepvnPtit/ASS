@@ -36,7 +36,7 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - DELETE /admin/vehicles/:id - Soft delete vehicle
  * - POST /admin/vehicles/:id/restore - Restore deleted vehicle
  */
-@ApiTags('Admin - Full Access')
+@ApiTags('ADMIN - CUSTOMER VEHICLES MANAGEMENT')
 @ApiBearerAuth('JWT')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles('ADMIN')
