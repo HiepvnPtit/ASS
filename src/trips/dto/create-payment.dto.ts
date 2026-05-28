@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsEnum,
   MaxLength,
+  IsUUID,
 } from 'class-validator';
 
 export enum PaymentMethodEnum {
@@ -17,14 +18,11 @@ export enum PaymentMethodEnum {
 
 export class CreatePaymentDto {
   @ApiProperty({
-    description: 'Trip ID to pay for',
-    example: 'CD001',
-    minLength: 1,
-    maxLength: 50,
+    description: 'Trip UUID to pay for',
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
+  @IsUUID()
   @IsNotEmpty()
-  @IsString()
-  @MaxLength(50)
   maChuyenDi!: string;
 
   @ApiProperty({

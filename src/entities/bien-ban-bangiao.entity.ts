@@ -1,10 +1,12 @@
 import {
   Entity,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   Column,
   JoinColumn,
   ManyToOne,
   CreateDateColumn,
+  UpdateDateColumn,
+  DeleteDateColumn,
 } from 'typeorm';
 import { ChuyenDi } from './chuyen-di.entity';
 import { KhachHang } from './khach-hang.entity';
@@ -12,7 +14,7 @@ import { TaiXe } from './tai-xe.entity';
 
 @Entity({ name: 'bien_ban_ban_giao_xe' })
 export class BienBanBanGiaoXe {
-  @PrimaryColumn({ name: 'ma_bien_ban', type: 'varchar', length: 50 })
+  @PrimaryGeneratedColumn('uuid', { name: 'ma_bien_ban' })
   maBienBan!: string;
 
   @ManyToOne(() => ChuyenDi, (cd) => cd.bienBans, { onDelete: 'CASCADE' })

@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   Column,
   OneToOne,
   JoinColumn,
@@ -18,10 +18,10 @@ import { BienBanBanGiaoXe } from './bien-ban-bangiao.entity';
 @Entity({ name: 'tai_xe' })
 export class TaiXe {
   @ApiProperty({
-    description: 'Driver primary identifier',
-    example: 'TX001',
+    description: 'Driver primary identifier (UUID) - auto-generated',
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
-  @PrimaryColumn({ name: 'ma_tai_xe', type: 'varchar', length: 50 })
+  @PrimaryGeneratedColumn('uuid', { name: 'ma_tai_xe' })
   maTaiXe!: string;
 
   @ApiProperty({

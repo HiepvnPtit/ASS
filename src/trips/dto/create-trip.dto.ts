@@ -1,31 +1,44 @@
-import { IsNotEmpty, IsString, IsNumber, IsOptional } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsUUID,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTripDto {
-  @ApiProperty({ example: 'LX1', description: 'Mã loại xe' })
-  @IsString()
+  @ApiProperty({
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    description: 'Vehicle type UUID',
+  })
+  @IsUUID()
   @IsNotEmpty()
   maLoaiXe!: string;
 
   @ApiPropertyOptional({
-    example: 'TX123',
-    description: 'Mã tài xế (không bắt buộc - khi tạo chưa có tài xế)',
+    example: '550e8400-e29b-41d4-a716-446655440001',
+    description:
+      'Driver UUID (optional - when creating, driver may not be assigned yet)',
   })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   maTaiXe?: string;
 
   @ApiProperty({
-    example: 'XE123',
-    description: 'Mã xe (bắt buộc - xe của khách)',
+    example: '550e8400-e29b-41d4-a716-446655440002',
+    description: 'Vehicle UUID',
   })
-  @IsString()
+  @IsUUID()
   @IsNotEmpty()
   maXe!: string;
 
-  @ApiProperty({ example: 'BG1', description: 'Mã bảng giá áp dụng' })
-  @IsString()
+  @ApiProperty({
+    example: '550e8400-e29b-41d4-a716-446655440003',
+    description: 'Price table UUID',
+  })
+  @IsUUID()
   @IsNotEmpty()
   maBangGia!: string;
 

@@ -25,16 +25,16 @@ export class TinNhan {
 
   @ApiProperty({
     description: 'Trip ID (foreign key)',
-    example: 'CD-12345',
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
-  @Column({ name: 'ma_chuyen_di', type: 'varchar', length: 50 })
+  @Column({ name: 'ma_chuyen_di', type: 'uuid' })
   maChuyenDi!: string;
 
   @ApiProperty({
     description: 'Message sender ID (NguoiDung)',
-    example: 'ND-12345',
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
-  @Column({ name: 'nguoi_gui_id', type: 'varchar', length: 50 })
+  @Column({ name: 'nguoi_gui_id', type: 'uuid' })
   nguoiGuiId!: string;
 
   @ApiProperty({

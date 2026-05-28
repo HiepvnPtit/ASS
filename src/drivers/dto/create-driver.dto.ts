@@ -1,25 +1,29 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsDate, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsDate,
+  MaxLength,
+  IsUUID,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateDriverDto {
   @ApiProperty({
-    description: 'Driver primary identifier',
-    example: 'TX001',
-    minLength: 1,
-    maxLength: 50,
+    description: 'User UUID (reference to NguoiDung)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
+  @IsUUID()
   @IsNotEmpty()
-  @IsString()
-  @MaxLength(50)
-  maTaiXe!: string;
+  maNguoiDung!: string;
 
   @ApiProperty({
     description: 'Secondary identifier',
     example: 'TX001',
     nullable: true,
-    minLength: 1,
     maxLength: 50,
   })
+  @IsOptional()
   @IsString()
   @MaxLength(50)
   ma?: string;
@@ -55,4 +59,13 @@ export class CreateDriverDto {
   @IsNotEmpty()
   @IsDate()
   hanGiayPhepLaiXe!: Date;
+
+  @ApiProperty({
+    description: 'Driver rating (0-5)',
+    example: '5.00',
+    type: 'number',
+    nullable: true,
+  })
+  @IsOptional()
+  diemDanhGia?: number | null;
 }

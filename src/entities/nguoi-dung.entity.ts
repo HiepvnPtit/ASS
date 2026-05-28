@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
@@ -16,10 +16,10 @@ import { KhieuNai } from './khieu-nai.entity';
 @Entity({ name: 'nguoi_dung' })
 export class NguoiDung {
   @ApiProperty({
-    description: 'User primary identifier',
-    example: 'ND001',
+    description: 'User primary identifier (UUID) - auto-generated',
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
-  @PrimaryColumn({ name: 'ma_nguoi_dung', type: 'varchar', length: 50 })
+  @PrimaryGeneratedColumn('uuid', { name: 'ma_nguoi_dung' })
   maNguoiDung!: string;
 
   @ApiProperty({

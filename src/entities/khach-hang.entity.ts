@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
@@ -19,10 +19,10 @@ import { ChuyenDi } from './chuyen-di.entity';
 @Entity({ name: 'khach_hang' })
 export class KhachHang {
   @ApiProperty({
-    description: 'Customer primary identifier',
-    example: 'KH001',
+    description: 'Customer primary identifier (UUID) - auto-generated',
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
-  @PrimaryColumn({ name: 'ma_khach_hang', type: 'varchar', length: 50 })
+  @PrimaryGeneratedColumn('uuid', { name: 'ma_khach_hang' })
   maKhachHang!: string;
 
   @ApiProperty({

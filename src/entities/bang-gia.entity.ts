@@ -3,10 +3,11 @@
   Column,
   ManyToOne,
   JoinColumn,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
   DeleteDateColumn,
+  BeforeInsert,
 } from 'typeorm';
 import { LoaiXe } from './loai-xe.entity';
 import { ApiProperty, ApiHideProperty } from '@nestjs/swagger';
@@ -14,10 +15,10 @@ import { ApiProperty, ApiHideProperty } from '@nestjs/swagger';
 @Entity({ name: 'bang_gia' })
 export class BangGia {
   @ApiProperty({
-    description: 'Primary identifier (price table code)',
-    example: 'BG001',
+    description: 'Primary identifier (price table UUID) - auto-generated',
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
-  @PrimaryColumn({ name: 'ma_bang_gia', type: 'varchar', length: 50 })
+  @PrimaryGeneratedColumn('uuid', { name: 'ma_bang_gia' })
   maBangGia!: string;
 
   @ApiProperty({ description: 'Secondary identifier', example: 'BG001' })
@@ -72,4 +73,16 @@ export class BangGia {
   @ApiProperty({ description: 'Soft delete timestamp', nullable: true })
   @DeleteDateColumn({ name: 'deleted_at' })
   deletedAt?: Date;
+
+  /**
+   * TypeORM lifecycle hook - Auto-generate ma field before insert
+   * Ensures the ma column is never null
+   */
+  @BeforeInsert()
+  generateMaBangGia() {
+    if (!this.ma) {
+      // Auto-generate: BG-{timestamp} to ensure uniqueness
+      this.ma = `BG-${Date.now()}`;
+    }
+  }
 }

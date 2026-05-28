@@ -1,16 +1,18 @@
 import {
   Entity,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   Column,
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  UpdateDateColumn,
+  DeleteDateColumn,
 } from 'typeorm';
 import { ChuyenDi } from './chuyen-di.entity';
 
 @Entity({ name: 'lich_su_trang_thai' })
 export class LichSuTrangThai {
-  @PrimaryColumn({ name: 'ma_lich_su', type: 'varchar', length: 50 })
+  @PrimaryGeneratedColumn('uuid', { name: 'ma_lich_su' })
   maLichSu!: string;
 
   @ManyToOne(() => ChuyenDi, (cd) => cd.lichSuTrangThais, {
@@ -39,4 +41,10 @@ export class LichSuTrangThai {
 
   @Column({ name: 'nguoi_cap_nhat', type: 'varchar', length: 50 })
   nguoiCapNhat!: string;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt!: Date;
+
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt?: Date;
 }

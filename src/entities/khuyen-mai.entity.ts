@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
@@ -10,7 +10,7 @@ import { ApiProperty, ApiHideProperty } from '@nestjs/swagger';
 
 @Entity({ name: 'khuyen_mai' })
 export class KhuyenMai {
-  @PrimaryColumn({ name: 'ma_code', type: 'varchar', length: 50 })
+  @PrimaryGeneratedColumn('uuid', { name: 'ma_code' })
   maCode!: string;
 
   @ApiProperty({

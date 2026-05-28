@@ -1,9 +1,18 @@
-import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  DeleteDateColumn,
+} from 'typeorm';
 import { KhachHang } from './khach-hang.entity';
 
 @Entity({ name: 'dia_chi_khach_hang' })
 export class DiaChiKhachHang {
-  @PrimaryColumn({ name: 'ma_dia_chi', type: 'varchar', length: 50 })
+  @PrimaryGeneratedColumn('uuid', { name: 'ma_dia_chi' })
   maDiaChi!: string;
 
   @ManyToOne(() => KhachHang, (kh) => kh.diaChis, { onDelete: 'CASCADE' })
@@ -24,4 +33,13 @@ export class DiaChiKhachHang {
 
   @Column({ name: 'la_dia_chi_mac_dinh', type: 'boolean', default: false })
   laDiaChiMacDinh!: boolean;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt!: Date;
+
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt?: Date;
 }

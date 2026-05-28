@@ -1,10 +1,19 @@
-import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  DeleteDateColumn,
+} from 'typeorm';
 import { TaiXe } from './tai-xe.entity';
 import { LoaiXe } from './loai-xe.entity';
 
 @Entity({ name: 'ki_nang_tai_xe' })
 export class KiNangTaiXe {
-  @PrimaryColumn({ name: 'ma_ki_nang_tai_xe', type: 'varchar', length: 50 })
+  @PrimaryGeneratedColumn('uuid', { name: 'ma_ki_nang_tai_xe' })
   maKiNangTaiXe!: string;
 
   @ManyToOne(() => TaiXe, (tx) => tx.kiNangs, { onDelete: 'CASCADE' })
@@ -39,4 +48,13 @@ export class KiNangTaiXe {
     default: 'ACTIVE',
   })
   trangThai!: string;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt!: Date;
+
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt?: Date;
 }

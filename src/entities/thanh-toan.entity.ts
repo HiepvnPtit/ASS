@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   Column,
   OneToOne,
   JoinColumn,
@@ -13,7 +13,7 @@ import { ChuyenDi } from './chuyen-di.entity';
 
 @Entity({ name: 'thanh_toan' })
 export class ThanhToan {
-  @PrimaryColumn({ name: 'ma_thanh_toan', type: 'varchar', length: 50 })
+  @PrimaryGeneratedColumn('uuid', { name: 'ma_thanh_toan' })
   maThanhToan!: string;
 
   @ApiProperty({

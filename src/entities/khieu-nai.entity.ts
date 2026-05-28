@@ -1,17 +1,19 @@
 import {
   Entity,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   Column,
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  UpdateDateColumn,
+  DeleteDateColumn,
 } from 'typeorm';
 import { ChuyenDi } from './chuyen-di.entity';
 import { NguoiDung } from './nguoi-dung.entity';
 
 @Entity({ name: 'khieu_nai' })
 export class KhieuNai {
-  @PrimaryColumn({ name: 'ma_khieu_nai', type: 'varchar', length: 50 })
+  @PrimaryGeneratedColumn('uuid', { name: 'ma_khieu_nai' })
   maKhieuNai!: string;
 
   @ManyToOne(() => ChuyenDi, { onDelete: 'CASCADE' })

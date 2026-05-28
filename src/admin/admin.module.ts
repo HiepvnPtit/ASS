@@ -17,7 +17,6 @@ import { AdminSystemVehiclesController } from './controllers/admin-system-vehicl
 import { AdminDashboardController } from './controllers/admin-dashboard.controller';
 import { AdminLoaiXeController } from './controllers/admin-loai-xe.controller';
 import { AdminBangGiaController } from './controllers/admin-bang-gia.controller';
-import { AdminVehiclesController } from './controllers/admin-vehicles.controller';
 import { AdminTripsController } from './controllers/admin-trips.controller';
 import { AdminPaymentsController } from './controllers/admin-payments.controller';
 import { AdminReviewsController } from './controllers/admin-reviews.controller';
@@ -77,7 +76,6 @@ import { ChuyenDi } from '../entities/chuyen-di.entity';
     // Admin CRUD Controllers for Full Access
     AdminLoaiXeController,
     AdminBangGiaController,
-    AdminVehiclesController,
     AdminTripsController,
     AdminPaymentsController,
     AdminReviewsController,

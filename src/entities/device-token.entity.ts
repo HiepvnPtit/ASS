@@ -17,17 +17,22 @@ import { NguoiDung } from './nguoi-dung.entity';
  * Lưu trữ FCM tokens của thiết bị người dùng để gửi push notification
  */
 @Entity({ name: 'device_token' })
-@Index(['maNguoiDung', 'token'], { unique: true })
+@Index(['maNguoiDung', 'token'], {
+  unique: true,
+  where: 'ma_nguoi_dung IS NOT NULL',
+})
+@Index(['token'])
 export class DeviceToken {
   @PrimaryGeneratedColumn('uuid', { name: 'id' })
   id!: string;
 
   @ApiProperty({
     description: 'User ID (foreign key)',
-    example: 'ND-123456',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    nullable: true,
   })
-  @Column({ name: 'ma_nguoi_dung', type: 'varchar', length: 50 })
-  maNguoiDung!: string;
+  @Column({ name: 'ma_nguoi_dung', type: 'uuid', nullable: true })
+  maNguoiDung?: string;
 
   @ApiProperty({
     description: 'FCM device token',
@@ -113,7 +118,7 @@ export class DeviceToken {
   deletedAt?: Date;
 
   @ApiHideProperty()
-  @ManyToOne(() => NguoiDung, { onDelete: 'CASCADE' })
+  @ManyToOne(() => NguoiDung, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'ma_nguoi_dung' })
-  nguoiDung!: NguoiDung;
+  nguoiDung?: NguoiDung;
 }

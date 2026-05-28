@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   Column,
   ManyToOne,
   JoinColumn,
@@ -20,7 +20,7 @@ import { BienBanBanGiaoXe } from './bien-ban-bangiao.entity';
 
 @Entity({ name: 'chuyen_di' })
 export class ChuyenDi {
-  @PrimaryColumn({ name: 'ma_chuyen_di', type: 'varchar', length: 50 })
+  @PrimaryGeneratedColumn('uuid', { name: 'ma_chuyen_di' })
   maChuyenDi!: string;
 
   @ApiProperty({

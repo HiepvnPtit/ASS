@@ -1,17 +1,19 @@
 import {
   Entity,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   Column,
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  UpdateDateColumn,
+  DeleteDateColumn,
 } from 'typeorm';
 import { ChuyenDi } from './chuyen-di.entity';
 import { BienBanBanGiaoXe } from './bien-ban-bangiao.entity';
 
 @Entity({ name: 'anh_chung_thuc' })
 export class AnhChungThuc {
-  @PrimaryColumn({ name: 'ma_anh', type: 'varchar', length: 50 })
+  @PrimaryGeneratedColumn('uuid', { name: 'ma_anh' })
   maAnh!: string;
 
   @ManyToOne(() => ChuyenDi, { onDelete: 'CASCADE' })
@@ -37,4 +39,10 @@ export class AnhChungThuc {
     default: () => 'CURRENT_TIMESTAMP',
   })
   thoiGianTao!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt!: Date;
+
+  @DeleteDateColumn({ name: 'deleted_at' })
+  deletedAt?: Date;
 }
