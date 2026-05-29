@@ -18,13 +18,13 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * All endpoints:
  * - Require JWT authentication
  * - Require ADMIN role
- * - Support soft delete & restore
+ * - Support soft delete
  *
  * Admin can:
  * - Create new trips
  * - View all trips with pagination
  * - Update any trip details
- * - Soft delete or restore trips
+ * - Soft delete trips
  * - View trip status history
  *
  * Endpoints:
@@ -34,7 +34,7 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - GET /admin/trips/:id - Get trip by ID
  * - PUT /admin/trips/:id - Update trip
  * - DELETE /admin/trips/:id - Soft delete trip
- * - POST /admin/trips/:id/restore - Restore deleted trip
+
  */
 @ApiTags('ADMIN - TRIP MANAGEMENT')
 @ApiBearerAuth('JWT')

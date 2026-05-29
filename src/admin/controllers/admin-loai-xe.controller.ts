@@ -18,7 +18,7 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * All endpoints:
  * - Require JWT authentication
  * - Require ADMIN role
- * - Support soft delete & restore
+ * - Support soft delete
  *
  * Endpoints:
  * - POST /admin/loai-xe - Create new vehicle type
@@ -27,7 +27,6 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - GET /admin/loai-xe/:id - Get by ID
  * - PUT /admin/loai-xe/:id - Update record
  * - DELETE /admin/loai-xe/:id - Soft delete
- * - POST /admin/loai-xe/:id/restore - Restore deleted record
  */
 @ApiTags('ADMIN - VEHICLE TYPE MANAGEMENT')
 @ApiBearerAuth('JWT')

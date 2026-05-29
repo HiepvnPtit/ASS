@@ -3,6 +3,7 @@
 ## 🎯 Mục Đích
 
 Tạo sẵn 1 tài khoản ADMIN khi khởi tạo database, giúp:
+
 - ✅ Nhanh chóng truy cập admin panel
 - ✅ Không cần tạo thủ công
 - ✅ Đảm bảo mọi dev có cùng credential
@@ -29,7 +30,8 @@ npm run migration:run
 ```
 
 **Output:**
-```
+
+```text
 ✅ Database migrations applied successfully
 ```
 
@@ -40,7 +42,8 @@ npm run seed:run:relational
 ```
 
 **Output:**
-```
+
+```text
 ✅ Admin user đã được tạo thành công
    - Email: admin@app.com
    - Password: Admin@123
@@ -59,19 +62,19 @@ npm run start:dev
 
 ## 👤 Admin Account Details
 
-| Field | Value |
-|-------|-------|
-| **Email** | `admin@app.com` |
-| **Password** | `Admin@123` |
-| **User ID** | `ND_ADMIN_001` |
-| **Role** | `ADMIN` |
-| **Status** | `ACTIVE` |
+| Field        | Value             |
+| ------------ | ----------------- |
+| **Email**    | `admin@app.com`   |
+| **Password** | `Admin@123`       |
+| **User ID**  | `ND_ADMIN_001`    |
+| **Role**     | `ADMIN`           |
+| **Status**   | `ACTIVE`          |
 
 ---
 
 ## 🔐 Bảo Mật - Thay Đổi Mật Khẩu
 
-### Ngay lập tức sau khi login:
+### Ngay lập tức sau khi login
 
 ```bash
 # 1. Login vào API
@@ -88,8 +91,11 @@ Content-Type: application/json
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "refreshToken": "..."
 }
+```
 
-# 2. Thay đổi mật khẩu
+### 2. Thay đổi mật khẩu
+
+```bash
 PATCH /profile/password
 Authorization: Bearer <access_token>
 Content-Type: application/json
@@ -100,7 +106,7 @@ Content-Type: application/json
 }
 ```
 
-### Hoặc dùng Environment Variable:
+### Hoặc dùng Environment Variable
 
 ```bash
 # .env hoặc .env.local
@@ -134,7 +140,7 @@ curl -X POST http://localhost:3000/auth/login \
     "password": "Admin@123"
   }'
 
-# Response:
+# Response
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
@@ -183,6 +189,7 @@ npm run seed:run:relational
 ### Tự động Seed khi Container Start
 
 **Dockerfile:**
+
 ```dockerfile
 FROM node:20-alpine
 
@@ -197,9 +204,11 @@ RUN npm run build
 
 # Chạy migrations + seeds trước khi start server
 CMD ["sh", "-c", "npm run migration:run && npm run seed:run:relational && npm run start:prod"]
+
 ```
 
 **docker-compose.yaml:**
+
 ```yaml
 services:
   api:
@@ -232,8 +241,10 @@ volumes:
 ```
 
 **Chạy:**
+
 ```bash
 docker-compose up -d
+
 # Admin sẽ được tạo tự động
 ```
 
@@ -251,10 +262,12 @@ npm install
 
 # 3. Cấu hình .env
 cp env-example-relational .env
+
 # Chỉnh sửa .env nếu cần (DB connection string, etc.)
 
 # 4. Khởi tạo database (nếu chưa có)
 docker-compose up -d postgres
+
 # Hoặc có sẵn PostgreSQL: Tạo DB "appdb"
 
 # 5. Chạy migrations
@@ -293,19 +306,24 @@ adminUser.matKhau = await bcrypt.hash(
   process.env.ADMIN_PASSWORD || 'Admin@123',
   10
 );
+
 ```
 
 ### .env
-```
+
+```bash
 ADMIN_ID=ND_ADMIN_001
 ADMIN_NAME=Admin System
 ADMIN_EMAIL=admin@company.com
 ADMIN_PASSWORD=SuperSecure@123
+
 ```
 
 ### Chạy seed
+
 ```bash
 npm run seed:run:relational
+
 ```
 
 ---
@@ -313,7 +331,7 @@ npm run seed:run:relational
 ## 🆘 Troubleshooting
 
 | Lỗi | Giải pháp |
-|-----|----------|
+| --- | --- |
 | `Error: Admin user đã tồn tại` | ✅ Bình thường - script sẽ bỏ qua, không báo lỗi |
 | `Database connection failed` | Kiểm tra DB connection string trong .env |
 | `Migration not found` | Chạy `npm run migration:run` trước |

@@ -49,7 +49,7 @@ export class AdminSystemVehiclesController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Danh sách xe' })
   async getAllVehicles(@Query() query: GetPaginationQueryDto) {
-    return this.adminService.getAllVehicles(query);
+    return await this.adminService.getAllVehicles(query);
   }
 
   /**
@@ -75,6 +75,9 @@ export class AdminSystemVehiclesController {
     @Param('id') vehicleId: string,
     @Body('reason') reason?: string,
   ) {
-    return this.adminService.deleteVehicle(vehicleId, reason);
+    return await this.adminService.deleteVehicle(
+      vehicleId,
+      reason || 'No reason provided',
+    );
   }
 }

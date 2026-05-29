@@ -3,7 +3,9 @@ import {
   Get,
   Patch,
   Post,
+  Delete,
   Body,
+  Param,
   UseGuards,
   Req,
   HttpStatus,
@@ -21,10 +23,12 @@ import {
 import { DriversService } from './drivers.service';
 import { UpdateDriverStatusDto } from './dto/update-driver-status.dto';
 import { CreateLocationDto } from './dto/create-location.dto';
+import { CreateSkillDto } from './dto/create-skill.dto';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { TaiXe } from '../entities/tai-xe.entity';
 import { ViTri } from '../entities/vi-tri.entity';
+import { KiNangTaiXe } from '../entities/ki-nang-tai-xe.entity';
 
 @ApiTags('Drivers - Self-Service')
 @Controller('drivers')
@@ -54,7 +58,7 @@ export class DriversController {
   })
   @ApiResponse({
     status: 401,
-    description: 'Unauthorized - JWT token required',
+    description: 'Unauthorized - Cần JWT token',
   })
   @ApiResponse({
     status: 404,
@@ -234,5 +238,92 @@ export class DriversController {
       timeframe,
       this.SYSTEM_COMMISSION_RATE,
     );
+  }
+
+  /**
+   * GET /drivers/me/skills
+   * List all skills of the current driver
+   */
+  @Get('me/skills')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('DRIVER')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Xem danh sách kỹ năng',
+    description: 'Lấy danh sách các loại xe mà tài xế có kỹ năng lái',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách kỹ năng thành công',
+    type: KiNangTaiXe,
+    isArray: true,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token required',
+  })
+  async getSkills(@Req() req: any) {
+    const maTaiXe = req.user.id;
+    return this.driversService.getSkills(maTaiXe);
+  }
+
+  /**
+   * POST /drivers/me/skills
+   * Add a new skill for the current driver (vehicle type competency)
+   */
+  @Post('me/skills')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('DRIVER')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Thêm kỹ năng mới',
+    description: 'Thêm một loại xe mới vào danh sách kỹ năng của tài xế',
+  })
+  @ApiBody({ type: CreateSkillDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Thêm kỹ năng thành công',
+    type: KiNangTaiXe,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Loại xe không tồn tại hoặc kỹ năng đã có',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token required',
+  })
+  async addSkill(@Req() req: any, @Body() dto: CreateSkillDto) {
+    const maTaiXe = req.user.id;
+    return this.driversService.addSkill(maTaiXe, dto);
+  }
+
+  /**
+   * DELETE /drivers/me/skills/:id
+   * Remove a skill by ID
+   */
+  @Delete('me/skills/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('DRIVER')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Xoá kỹ năng',
+    description: 'Xoá một kỹ năng lái xe theo ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Xoá kỹ năng thành công',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Kỹ năng không tồn tại hoặc không thuộc về tài xế này',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token required',
+  })
+  async deleteSkill(@Req() req: any, @Param('id') maKiNangTaiXe: string) {
+    const maTaiXe = req.user.id;
+    return this.driversService.deleteSkill(maTaiXe, maKiNangTaiXe);
   }
 }

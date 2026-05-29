@@ -84,7 +84,7 @@ export class AdminUsersController {
     @Param('id') userId: string,
     @Body() updateDto: UpdateUserDto,
   ) {
-    return this.adminService.updateUser(userId, updateDto);
+    return await this.adminService.updateUser(userId, updateDto);
   }
 
   /**
@@ -109,6 +109,6 @@ export class AdminUsersController {
     @Param('id') userId: string,
     @Body() toggleDto: ToggleUserStatusDto,
   ) {
-    return this.adminService.toggleUserStatus(userId, toggleDto);
+    return await this.adminService.toggleUserStatus(userId, toggleDto);
   }
 }

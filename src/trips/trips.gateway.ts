@@ -22,6 +22,13 @@ export interface UpdateLocationPayload {
   kinhDo: number;
 }
 
+export interface CustomerShareLocationPayload {
+  maChuyenDi: string;
+  viDo: number;
+  kinhDo: number;
+  loaiSuKien?: 'REALTIME_SHARE' | 'PICKUP_UPDATE' | 'ARRIVED';
+}
+
 export interface TripStatusChangedPayload {
   maChuyenDi: string;
   trangThai: string;
@@ -151,6 +158,71 @@ export class TripsGateway
       driverId: client.id,
       timestamp: new Date(),
     });
+  }
+
+  /**
+   * Customer Share Location (Real-time)
+   *
+   * Customer sends 'share_location' event with their current coordinates
+   * Gateway broadcasts location update to all clients in the trip room
+   * and saves to ViTri table for history tracking
+   *
+   * @param payload Contains maChuyenDi, viDo (latitude), kinhDo (longitude), loaiSuKien
+   * @param client Socket client (customer)
+   */
+  @SubscribeMessage('share_location')
+  async handleCustomerShareLocation(
+    @MessageBody() payload: CustomerShareLocationPayload,
+    @ConnectedSocket() client: Socket,
+  ): Promise<void> {
+    const { maChuyenDi, viDo, kinhDo, loaiSuKien = 'REALTIME_SHARE' } = payload;
+
+    if (!maChuyenDi || viDo === undefined || kinhDo === undefined) {
+      client.emit('error', {
+        message: 'maChuyenDi, viDo, and kinhDo are required',
+      });
+      return;
+    }
+
+    const roomName = `trip_${maChuyenDi}`;
+
+    try {
+      // Extract user ID from socket handshake auth
+      const userId = (client.handshake as any).auth?.userId;
+
+      // Save customer location to ViTri table with history tracking
+      await this.tripsService.saveCustomerLocation(
+        maChuyenDi,
+        userId,
+        viDo,
+        kinhDo,
+        loaiSuKien,
+      );
+
+      this.logger.debug(
+        `Customer location saved for trip ${maChuyenDi}: viDo=${viDo}, kinhDo=${kinhDo}`,
+      );
+
+      // Broadcast location update to all clients in the room
+      this.server.to(roomName).emit('customer_location_updated', {
+        maChuyenDi,
+        viDo,
+        kinhDo,
+        customerId: client.id,
+        loaiSuKien,
+        timestamp: new Date(),
+      });
+    } catch (error: any) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Error saving customer location for trip ${maChuyenDi}:`,
+        errorMsg,
+      );
+      client.emit('error', {
+        message: 'Failed to save location',
+        details: errorMsg,
+      });
+    }
   }
 
   /**

@@ -11,6 +11,8 @@ import { KhachHang } from '../entities/khach-hang.entity';
 import { Xe } from '../entities/xe.entity';
 import { KhieuNai } from '../entities/khieu-nai.entity';
 import { ChuyenDi } from '../entities/chuyen-di.entity';
+import { ThanhToan } from '../entities/thanh-toan.entity';
+import { DanhGia } from '../entities/danh-gia.entity';
 import { ApproveDriverDto } from './dto/approve-driver.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ToggleUserStatusDto } from './dto/toggle-user-status.dto';
@@ -40,6 +42,10 @@ export class AdminService {
     private readonly khieuNaiRepo: Repository<KhieuNai>,
     @InjectRepository(ChuyenDi)
     private readonly chuyenDiRepo: Repository<ChuyenDi>,
+    @InjectRepository(ThanhToan)
+    private readonly thanhToanRepo: Repository<ThanhToan>,
+    @InjectRepository(DanhGia)
+    private readonly danhGiaRepo: Repository<DanhGia>,
   ) {}
 
   /**
@@ -284,67 +290,145 @@ export class AdminService {
     };
   }
 
-  // ========== QUẢN LÝ NGƯỜI DÙNG (NguoiDung) ==========
-
   /**
-   * Cập nhật thông tin cơ bản người dùng (Họ tên, SĐT)
+   * Lấy dashboard metrics
    */
-  async updateUser(userId: string, updateDto: UpdateUserDto) {
-    const user = await this.nguoiDungRepo.findOne({
-      where: { maNguoiDung: userId },
+  async getDashboardMetrics() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Users
+    const totalUsers = await this.nguoiDungRepo.count();
+    const totalCustomers = await this.khachHangRepo.count();
+    const totalDrivers = await this.taiXeRepo.count();
+
+    // Drivers status
+    const driversOnline = await this.taiXeRepo.count({
+      where: { trangThaiHoatDong: 'ONLINE' },
+    });
+    const driversVerified = await this.taiXeRepo.count({
+      where: { trangThaiXacThuc: 'VERIFIED' },
+    });
+    const driversPending = await this.taiXeRepo.count({
+      where: { trangThaiXacThuc: 'PENDING' },
     });
 
-    if (!user) {
-      throw new NotFoundException('Người dùng không tồn tại');
-    }
+    // Vehicles
+    const totalVehicles = await this.xeRepo.count();
 
-    if (updateDto.hoTen) user.hoTen = updateDto.hoTen;
-    if (updateDto.soDienThoai) user.soDienThoai = updateDto.soDienThoai;
+    // Trips
+    const totalTrips = await this.chuyenDiRepo.count();
+    const tripsToday = await this.chuyenDiRepo.count({
+      where: { thoiGianDat: MoreThanOrEqual(today) },
+    });
+    const tripsCompleted = await this.chuyenDiRepo.count({
+      where: { trangThai: 'COMPLETED' },
+    });
+    const tripsCancelled = await this.chuyenDiRepo.count({
+      where: { trangThai: 'CANCELLED' },
+    });
+    const tripsRequested = await this.chuyenDiRepo.count({
+      where: { trangThai: 'REQUESTED' },
+    });
 
-    const updated = await this.nguoiDungRepo.save(user);
+    // Revenue
+    const revenueResult = await this.thanhToanRepo
+      .createQueryBuilder('pay')
+      .select('COALESCE(SUM(CAST(pay.soTien AS DECIMAL)), 0)', 'totalRevenue')
+      .where('pay.trang_thai_thanh_toan = :status', { status: 'COMPLETED' })
+      .getRawOne();
+    const totalRevenue = parseFloat(revenueResult?.totalRevenue || '0').toFixed(
+      2,
+    );
+
+    // Revenue today
+    const revenueTodayResult = await this.thanhToanRepo
+      .createQueryBuilder('pay')
+      .select('COALESCE(SUM(CAST(pay.soTien AS DECIMAL)), 0)', 'revenueToday')
+      .where('pay.trang_thai_thanh_toan = :status', { status: 'COMPLETED' })
+      .andWhere('pay.thoi_gian_thanh_toan >= :today', { today })
+      .getRawOne();
+    const revenueToday = parseFloat(
+      revenueTodayResult?.revenueToday || '0',
+    ).toFixed(2);
+
+    // Average rating
+    const ratingResult = await this.danhGiaRepo
+      .createQueryBuilder('review')
+      .select('COALESCE(AVG(review.soSao), 0)', 'avgRating')
+      .getRawOne();
+    const averageRating = parseFloat(ratingResult?.avgRating || '0').toFixed(2);
+
+    // Complaints
+    const totalComplaints = await this.khieuNaiRepo.count();
+    const pendingComplaints = await this.khieuNaiRepo.count({
+      where: { trangThai: 'PENDING' },
+    });
 
     return {
-      id: updated.maNguoiDung,
-      hoTen: updated.hoTen,
-      email: updated.email,
-      soDienThoai: updated.soDienThoai,
-      vaiTro: updated.vaiTro,
-      trangThai: updated.trangThai,
+      timestamp: new Date(),
+      users: {
+        total: totalUsers,
+        customers: totalCustomers,
+        drivers: totalDrivers,
+      },
+      drivers: {
+        online: driversOnline,
+        verified: driversVerified,
+        pending: driversPending,
+      },
+      vehicles: {
+        total: totalVehicles,
+      },
+      trips: {
+        total: totalTrips,
+        today: tripsToday,
+        completed: tripsCompleted,
+        cancelled: tripsCancelled,
+        requested: tripsRequested,
+      },
+      revenue: {
+        total: totalRevenue,
+        today: revenueToday,
+        currency: 'VND',
+      },
+      ratings: {
+        average: averageRating,
+      },
+      complaints: {
+        total: totalComplaints,
+        pending: pendingComplaints,
+      },
     };
   }
 
   /**
-   * Khóa/Mở khóa tài khoản (Soft Delete via status toggle)
+   * Lấy danh sách tất cả khách hàng
    */
-  async toggleUserStatus(userId: string, toggleDto: ToggleUserStatusDto) {
-    const user = await this.nguoiDungRepo.findOne({
-      where: { maNguoiDung: userId },
+  async getAllCustomers(query: GetPaginationQueryDto) {
+    const page = query.page || 1;
+    const limit = query.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const [customers, total] = await this.khachHangRepo.findAndCount({
+      skip,
+      take: limit,
+      order: { maKhachHang: 'DESC' },
     });
 
-    if (!user) {
-      throw new NotFoundException('Người dùng không tồn tại');
-    }
-
-    const oldStatus = user.trangThai;
-    user.trangThai = toggleDto.trangThai;
-
-    const updated = await this.nguoiDungRepo.save(user);
-
     return {
-      id: updated.maNguoiDung,
-      hoTen: updated.hoTen,
-      email: updated.email,
-      trangThai: updated.trangThai,
-      previousStatus: oldStatus,
-      lyDo: toggleDto.lyDo || null,
-      updatedAt: new Date(),
+      data: customers,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
-  // ========== QUẢN LÝ TÀI XẾ (TaiXe) ==========
-
   /**
-   * Lấy danh sách tài xế (join với NguoiDung)
+   * Lấy danh sách tất cả tài xế
    */
   async getAllDrivers(query: GetPaginationQueryDto) {
     const page = query.page || 1;
@@ -355,25 +439,11 @@ export class AdminService {
       relations: ['nguoiDung'],
       skip,
       take: limit,
-      order: {
-        maTaiXe: 'ASC',
-      },
+      order: { maTaiXe: 'DESC' },
     });
 
     return {
-      data: drivers.map((driver) => ({
-        id: driver.maTaiXe,
-        hoTen: driver.nguoiDung?.hoTen,
-        email: driver.nguoiDung?.email,
-        soDienThoai: driver.nguoiDung?.soDienThoai,
-        soGiayPhepLaiXe: driver.soGiayPhepLaiXe,
-        canCuocCongDan: driver.canCuocCongDan,
-        hanGiayPhepLaiXe: driver.hanGiayPhepLaiXe,
-        diemDanhGia: driver.diemDanhGia,
-        trangThaiXacThuc: driver.trangThaiXacThuc,
-        trangThaiHoatDong: driver.trangThaiHoatDong,
-        trangThaiNguoiDung: driver.nguoiDung?.trangThai,
-      })),
+      data: drivers,
       pagination: {
         total,
         page,
@@ -384,85 +454,28 @@ export class AdminService {
   }
 
   /**
-   * Admin cập nhật thông tin tài xế (bằng lái, CCCD, hạng sao, etc)
+   * Cập nhật thông tin tài xế
    */
   async updateDriver(driverId: string, updateDto: UpdateDriverDto) {
     const driver = await this.taiXeRepo.findOne({
       where: { maTaiXe: driverId },
-      relations: ['nguoiDung'],
     });
 
     if (!driver) {
       throw new NotFoundException('Tài xế không tồn tại');
     }
 
-    if (updateDto.soGiayPhepLaiXe)
-      driver.soGiayPhepLaiXe = updateDto.soGiayPhepLaiXe;
-    if (updateDto.canCuocCongDan)
-      driver.canCuocCongDan = updateDto.canCuocCongDan;
-    if (updateDto.diemDanhGia !== undefined) {
-      driver.diemDanhGia = updateDto.diemDanhGia.toString();
-    }
-    if (updateDto.hanGiayPhepLaiXe)
-      driver.hanGiayPhepLaiXe = new Date(updateDto.hanGiayPhepLaiXe);
-
+    Object.assign(driver, updateDto);
     const updated = await this.taiXeRepo.save(driver);
 
     return {
-      id: updated.maTaiXe,
-      hoTen: updated.nguoiDung?.hoTen,
-      email: updated.nguoiDung?.email,
-      soGiayPhepLaiXe: updated.soGiayPhepLaiXe,
-      canCuocCongDan: updated.canCuocCongDan,
-      hanGiayPhepLaiXe: updated.hanGiayPhepLaiXe,
-      diemDanhGia: updated.diemDanhGia,
-      ghiChu: updateDto.ghiChu || null,
-      updatedAt: new Date(),
+      message: 'Cập nhật tài xế thành công',
+      data: updated,
     };
   }
 
-  // ========== QUẢN LÝ KHÁCH HÀNG (KhachHang) ==========
-
   /**
-   * Lấy danh sách khách hàng
-   */
-  async getAllCustomers(query: GetPaginationQueryDto) {
-    const page = query.page || 1;
-    const limit = query.limit || 20;
-    const skip = (page - 1) * limit;
-
-    const [customers, total] = await this.khachHangRepo.findAndCount({
-      relations: ['nguoiDung', 'xe'],
-      skip,
-      take: limit,
-      order: {
-        maKhachHang: 'ASC',
-      },
-    });
-
-    return {
-      data: customers.map((customer) => ({
-        id: customer.maKhachHang,
-        hoTen: customer.nguoiDung?.hoTen,
-        email: customer.nguoiDung?.email,
-        soDienThoai: customer.nguoiDung?.soDienThoai,
-        trangThai: customer.nguoiDung?.trangThai,
-        diaChiMacDinh: customer.diaChiMacDinh,
-        soXe: customer.xe?.length || 0,
-      })),
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
-  }
-
-  // ========== QUẢN LÝ XE CỘ (Xe) ==========
-
-  /**
-   * Lấy danh sách toàn bộ xe trong hệ thống
+   * Lấy danh sách tất cả xe
    */
   async getAllVehicles(query: GetPaginationQueryDto) {
     const page = query.page || 1;
@@ -470,30 +483,14 @@ export class AdminService {
     const skip = (page - 1) * limit;
 
     const [vehicles, total] = await this.xeRepo.findAndCount({
-      relations: ['khachHang', 'khachHang.nguoiDung', 'loaiXe'],
+      relations: ['taiXe'],
       skip,
       take: limit,
-      order: {
-        maXe: 'ASC',
-      },
+      order: { maXe: 'DESC' },
     });
 
     return {
-      data: vehicles.map((vehicle) => ({
-        id: vehicle.maXe,
-        bienSo: vehicle.bienSo,
-        hangXe: vehicle.hangXe,
-        dongXe: vehicle.dongXe,
-        mauXe: vehicle.mauXe,
-        maLoaiXe: vehicle.loaiXe?.maLoaiXe,
-        phanKhuc: vehicle.loaiXe?.phanKhuc,
-        khachHang: {
-          id: vehicle.khachHang?.maKhachHang,
-          hoTen: vehicle.khachHang?.nguoiDung?.hoTen,
-          email: vehicle.khachHang?.nguoiDung?.email,
-          soDienThoai: vehicle.khachHang?.nguoiDung?.soDienThoai,
-        },
-      })),
+      data: vehicles,
       pagination: {
         total,
         page,
@@ -504,103 +501,63 @@ export class AdminService {
   }
 
   /**
-   * Admin xóa xe (cứng) - Xóa xe vi phạm hoặc khai báo sai
+   * Xóa xe
    */
-  async deleteVehicle(vehicleId: string, reason?: string) {
+  async deleteVehicle(vehicleId: string, reason: string) {
     const vehicle = await this.xeRepo.findOne({
       where: { maXe: vehicleId },
-      relations: ['khachHang'],
     });
 
     if (!vehicle) {
       throw new NotFoundException('Xe không tồn tại');
     }
 
-    // Kiểm tra xe có liên quan đến chuyến đi nào không
-    const hasActiveTrips = await this.chuyenDiRepo.count({
-      where: {
-        xe: { maXe: vehicleId },
-      },
-    });
-
-    if (hasActiveTrips > 0) {
-      throw new BadRequestException(
-        'Không thể xóa xe đang có các chuyến đi liên quan',
-      );
-    }
-
-    const customerInfo = vehicle.khachHang?.maKhachHang;
-
     await this.xeRepo.remove(vehicle);
 
     return {
-      message: 'Xóa xe thành công',
-      vehicleId: vehicle.maXe,
-      bienSo: vehicle.bienSo,
-      khachHangId: customerInfo,
-      lyDo: reason || 'Không có lý do',
+      message: `Xóa xe ${vehicleId} thành công. Lý do: ${reason}`,
     };
   }
 
   /**
-   * Dashboard Metrics - Thống kê nhanh
+   * Cập nhật thông tin người dùng
    */
-  async getDashboardMetrics() {
-    // Số cuốc xe hôm nay
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const tripsToday = await this.chuyenDiRepo.count({
-      where: {
-        thoiGianDat: MoreThanOrEqual(today),
-      },
+  async updateUser(userId: string, updateDto: UpdateUserDto) {
+    const user = await this.nguoiDungRepo.findOne({
+      where: { maNguoiDung: userId },
     });
 
-    // Tổng số tài xế đang ONLINE
-    const driversOnline = await this.taiXeRepo.count({
-      where: {
-        trangThaiHoatDong: 'ONLINE',
-      },
-    });
+    if (!user) {
+      throw new NotFoundException('Người dùng không tồn tại');
+    }
 
-    // Tổng số tài xế đã xác minh
-    const driversVerified = await this.taiXeRepo.count({
-      where: {
-        trangThaiXacThuc: 'VERIFIED',
-      },
-    });
-
-    // Tổng số tài xế chờ duyệt
-    const driversPending = await this.taiXeRepo.count({
-      where: {
-        trangThaiXacThuc: 'PENDING',
-      },
-    });
-
-    // Tổng số khiếu nại
-    const totalComplaints = await this.khieuNaiRepo.count();
-
-    // Tổng số khiếu nại chưa xử lý
-    const pendingComplaints = await this.khieuNaiRepo.count({
-      where: {
-        trangThai: 'PENDING',
-      },
-    });
+    Object.assign(user, updateDto);
+    const updated = await this.nguoiDungRepo.save(user);
 
     return {
-      timestamp: new Date(),
-      trips: {
-        today: tripsToday,
-      },
-      drivers: {
-        online: driversOnline,
-        verified: driversVerified,
-        pending: driversPending,
-      },
-      complaints: {
-        total: totalComplaints,
-        pending: pendingComplaints,
-      },
+      message: 'Cập nhật người dùng thành công',
+      data: updated,
+    };
+  }
+
+  /**
+   * Bật/tắt trạng thái người dùng
+   */
+  async toggleUserStatus(userId: string, toggleDto: ToggleUserStatusDto) {
+    const user = await this.nguoiDungRepo.findOne({
+      where: { maNguoiDung: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Người dùng không tồn tại');
+    }
+
+    user.trangThai = toggleDto.trangThai;
+    const updated = await this.nguoiDungRepo.save(user);
+
+    return {
+      message: `Thay đổi trạng thái người dùng thành ${toggleDto.trangThai} thành công`,
+      data: updated,
     };
   }
 }

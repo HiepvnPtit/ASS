@@ -4,6 +4,7 @@ import {
   IsString,
   IsIn,
   IsOptional,
+  IsDateString,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -62,6 +63,12 @@ export class RegisterDto {
 
   @ApiPropertyOptional({ description: 'Hạn giấy phép lái xe (ISO date)' })
   @IsOptional()
-  @IsString()
+  @IsDateString(
+    {},
+    {
+      message:
+        'Han giay phep lai xe phai la dinh dang ngay hop le (VD: 2026-12-31)',
+    },
+  )
   hanGiayPhepLaiXe?: string; // ISO date
 }

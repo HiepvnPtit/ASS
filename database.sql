@@ -214,9 +214,12 @@ CREATE TABLE khieu_nai (
 CREATE TABLE vi_tri (
     ma_vi_tri VARCHAR(50) PRIMARY KEY,
     ma_chuyen_di VARCHAR(50) NOT NULL, -- Tối ưu hóa: Thiết lập kết nối trực tiếp với Chuyến đi
+    ma_tai_xe VARCHAR(50), -- Direct reference to driver (nullable for customer locations)
     loai_doi_tuong VARCHAR(50) NOT NULL, -- 'CUSTOMER', 'DRIVER'
+    loai_su_kien VARCHAR(50) NOT NULL, -- 'REALTIME_SHARE', 'PICKUP_UPDATE', 'ARRIVED', 'WAYPOINT'
     vi_do DOUBLE PRECISION NOT NULL,     -- Sử dụng DOUBLE PRECISION thay vì String để tính toán tọa độ địa lý hình học
     kinh_do DOUBLE PRECISION NOT NULL,    -- Sử dụng DOUBLE PRECISION thay vì String
     thoi_gian_cap_nhat TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (ma_chuyen_di) REFERENCES chuyen_di(ma_chuyen_di) ON DELETE CASCADE
+    FOREIGN KEY (ma_chuyen_di) REFERENCES chuyen_di(ma_chuyen_di) ON DELETE CASCADE,
+    FOREIGN KEY (ma_tai_xe) REFERENCES tai_xe(ma_tai_xe) ON DELETE SET NULL
 );

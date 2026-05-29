@@ -13,7 +13,7 @@ import { TaiXe } from '../entities/tai-xe.entity';
  * - Review creation and tracking
  * - Rating management (1-5 stars)
  * - Review content and feedback
- * - Review history and soft delete & restore
+ * - Review history and soft delete
  */
 @Injectable()
 export class ReviewsService extends BaseService<DanhGia> {
@@ -84,7 +84,7 @@ export class ReviewsService extends BaseService<DanhGia> {
       .leftJoin('review.chuyenDi', 'trip')
       .select('AVG(review.soSao)', 'avgRating')
       .addSelect('COUNT(review.maDanhGia)', 'reviewCount')
-      .where('trip.maTaiXe = :maTaiXe', { maTaiXe })
+      .where('trip.ma_tai_xe = :maTaiXe', { maTaiXe })
       .andWhere('review.deletedAt IS NULL')
       .getRawOne();
 

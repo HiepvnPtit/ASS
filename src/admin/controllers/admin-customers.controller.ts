@@ -45,6 +45,6 @@ export class AdminCustomersController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Danh sách khách hàng' })
   async getAllCustomers(@Query() query: GetPaginationQueryDto) {
-    return this.adminService.getAllCustomers(query);
+    return await this.adminService.getAllCustomers(query);
   }
 }

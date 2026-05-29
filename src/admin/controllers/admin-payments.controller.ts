@@ -18,13 +18,13 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * All endpoints:
  * - Require JWT authentication
  * - Require ADMIN role
- * - Support soft delete & restore
+ * - Support soft delete
  *
  * Admin can:
  * - Create payment records manually
  * - View all payments with pagination
  * - Update payment status (PENDING, COMPLETED, FAILED, REFUNDED, etc.)
- * - Soft delete or restore payment records
+ * - Soft delete payment records
  * - Monitor payment transactions
  *
  * Endpoints:
@@ -34,7 +34,6 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - GET /admin/payments/:id - Get payment by ID
  * - PUT /admin/payments/:id - Update payment
  * - DELETE /admin/payments/:id - Soft delete payment
- * - POST /admin/payments/:id/restore - Restore deleted payment
  */
 @ApiTags('ADMIN - PAYMENT MANAGEMENT')
 @ApiBearerAuth('JWT')

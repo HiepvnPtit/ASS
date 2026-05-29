@@ -18,13 +18,13 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * All endpoints:
  * - Require JWT authentication
  * - Require ADMIN role
- * - Support soft delete & restore
+ * - Support soft delete
  *
  * Admin can:
  * - Create or edit review records
  * - View all reviews with pagination
  * - Update review content and ratings
- * - Soft delete or restore reviews
+ * - Soft delete reviews
  * - Monitor user feedback and ratings
  * - Remove inappropriate reviews
  *
@@ -35,7 +35,6 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - GET /admin/reviews/:id - Get review by ID
  * - PUT /admin/reviews/:id - Update review
  * - DELETE /admin/reviews/:id - Soft delete review
- * - POST /admin/reviews/:id/restore - Restore deleted review
  */
 @ApiTags('ADMIN - REVIEW MANAGEMENT')
 @ApiBearerAuth('JWT')

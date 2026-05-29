@@ -22,6 +22,7 @@ import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateTripStatusDto } from './dto/update-trip-status.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
+import { ShareLocationDto } from './dto/share-location.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import {
@@ -84,15 +85,10 @@ export class TripsController {
   @ApiOperation({
     summary: 'Estimate price for given vehicle type and distance',
     description:
-      'Calculate estimated trip price based on vehicle type, distance, and optional voucher code',
+      'Calculate estimated trip price based on vehicle type and distance',
   })
   @ApiQuery({ name: 'ma_loai_xe', required: true })
   @ApiQuery({ name: 'quang_duong_km', required: false })
-  @ApiQuery({
-    name: 'voucher_code',
-    required: false,
-    description: 'Optional voucher code to apply discount',
-  })
   @ApiResponse({
     status: 200,
     description: 'Price estimate calculated successfully',
@@ -102,23 +98,21 @@ export class TripsController {
         giaUocTinh: { type: 'string', example: '125.50' },
         giaCoBan: { type: 'string', example: '20.00' },
         giaTheoKm: { type: 'string', example: '10.50' },
-        voucherApplied: { type: 'boolean', example: true },
-        soTienGiam: { type: 'string', example: '12.55' },
-        giaSauGiam: { type: 'string', example: '112.95' },
       },
     },
   })
   @ApiResponse({
     status: 400,
-    description: 'Invalid parameters or voucher code',
+    description: 'Invalid parameters',
   })
   async estimate(
     @Query('ma_loai_xe') maLoaiXe: string,
     @Query('quang_duong_km') quangDuongKm: string,
-    @Query('voucher_code') voucherCode?: string,
+    @Query('khu_vuc') khuVuc?: string,
+    @Query('khung_gio') khungGio?: string,
   ) {
     const km = Number(quangDuongKm || 0);
-    return this.service.estimatePrice(maLoaiXe, km, voucherCode);
+    return this.service.estimatePrice(maLoaiXe, km, khuVuc, khungGio);
   }
 
   @Get('matching')
@@ -155,7 +149,9 @@ export class TripsController {
   }
 
   @Post(':id/reviews')
-  @ApiOperation({ summary: 'Đánh giá chuyến đi (Khách hàng)' })
+  @ApiOperation({
+    summary: 'Đánh giá chuyến đi (Khách hàng)',
+  })
   @ApiResponse({
     status: 201,
     description: 'Đánh giá chuyến đi thành công',
@@ -272,7 +268,9 @@ export class TripsController {
   }
 
   @Get(':id/payments')
-  @ApiOperation({ summary: 'Lấy thông tin thanh toán cho chuyến đi' })
+  @ApiOperation({
+    summary: 'Lấy thông tin thanh toán cho chuyến đi',
+  })
   @ApiResponse({
     status: 200,
     description: 'Thông tin thanh toán',
@@ -284,7 +282,9 @@ export class TripsController {
   }
 
   @Patch(':id/payments/status')
-  @ApiOperation({ summary: 'Cập nhật trạng thái thanh toán' })
+  @ApiOperation({
+    summary: 'Cập nhật trạng thái thanh toán',
+  })
   @ApiResponse({
     status: 200,
     description: 'Trạng thái thanh toán đã cập nhật',
@@ -346,6 +346,79 @@ export class TripsController {
     };
   }
 
+  @Post(':id/share-location')
+  @ApiOperation({
+    summary: '[TEST] Share customer location via REST',
+    description:
+      'Test endpoint to share customer location without WebSocket. Saves to ViTri table and returns the saved record.',
+  })
+  @ApiBody({ type: ShareLocationDto })
+  @ApiResponse({ status: 201, description: 'Location saved successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid trip or missing fields' })
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  )
+  async shareLocation(
+    @Param('id') maChuyenDi: string,
+    @Request() req: any,
+    @Body() dto: ShareLocationDto,
+  ) {
+    const userId = req.user?.maNguoiDung || req.user?.id;
+    const result = await this.service.saveCustomerLocation(
+      maChuyenDi,
+      userId,
+      dto.viDo,
+      dto.kinhDo,
+      dto.loaiSuKien,
+    );
+    return {
+      message: 'Vị trí đã được lưu thành công',
+      data: result,
+    };
+  }
+
+  @Post('share-location')
+  @ApiOperation({
+    summary: 'Share customer location BEFORE trip creation',
+    description:
+      'Customer shares location without requiring a trip ID. Location is saved standalone in ViTri table. Use this for the flow: share location → driver sees → driver accepts → create trip.',
+  })
+  @ApiBody({ type: ShareLocationDto })
+  @ApiResponse({ status: 201, description: 'Location saved successfully' })
+  @ApiResponse({ status: 400, description: 'Missing fields' })
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  )
+  async shareLocationBeforeTrip(
+    @Request() req: any,
+    @Body() dto: ShareLocationDto,
+  ) {
+    const userId = req.user?.maNguoiDung || req.user?.id;
+    const result = await this.service.saveCustomerLocation(
+      undefined, // no trip yet
+      userId,
+      dto.viDo,
+      dto.kinhDo,
+      dto.loaiSuKien,
+    );
+    return {
+      message: 'Vị trí đã được lưu thành công (chưa có chuyến đi)',
+      data: result,
+    };
+  }
+
   @Get('me/history')
   @ApiOperation({
     summary:
@@ -367,5 +440,31 @@ export class TripsController {
     const vaiTro = request.user.vaiTro;
 
     return this.service.getTripHistory(maNguoiDung, vaiTro, pageNum, limitNum);
+  }
+
+  @Get('available')
+  @ApiOperation({
+    summary: 'Get available trips for driver (REST polling)',
+    description:
+      'Returns all trips in REQUESTED status that match the driver vehicle skills. Driver calls this periodically to receive new trip requests.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Available trips retrieved successfully',
+  })
+  @ApiQuery({ name: 'page', required: false, type: 'number', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: 'number', example: 10 })
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('DRIVER')
+  @HttpCode(HttpStatus.OK)
+  async getAvailableTrips(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const maTaiXe = req.user.id;
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 10;
+    return this.service.getAvailableTripsForDriver(maTaiXe, pageNum, limitNum);
   }
 }

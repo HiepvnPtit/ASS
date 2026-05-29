@@ -13,7 +13,7 @@ import { UpdatePaymentStatusDto } from '../trips/dto/update-payment-status.dto';
  * - Payment creation and tracking
  * - Payment status updates
  * - Payment history
- * - Payment soft delete & restore
+ * - Payment soft delete
  */
 @Injectable()
 export class PaymentsService extends BaseService<ThanhToan> {

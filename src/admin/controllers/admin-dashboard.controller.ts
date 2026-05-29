@@ -43,7 +43,7 @@ export class AdminDashboardController {
   })
   @ApiResponse({ status: 200, description: 'Thống kê dashboard' })
   async getDashboardMetrics() {
-    return this.adminService.getDashboardMetrics();
+    return await this.adminService.getDashboardMetrics();
   }
 
   /**

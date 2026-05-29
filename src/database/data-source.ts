@@ -16,4 +16,13 @@ const AppDataSource = new DataSource({
   logging: false,
 });
 
+// Auto-initialize wrapper for lazy initialization
+export async function getDataSource(): Promise<DataSource> {
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize();
+    console.log('[getDataSource] AppDataSource initialized on demand');
+  }
+  return AppDataSource;
+}
+
 export default AppDataSource;

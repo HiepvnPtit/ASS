@@ -5,8 +5,6 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
-  UpdateDateColumn,
-  DeleteDateColumn,
 } from 'typeorm';
 import { ChuyenDi } from './chuyen-di.entity';
 import { NguoiDung } from './nguoi-dung.entity';

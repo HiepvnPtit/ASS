@@ -18,13 +18,13 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * All endpoints:
  * - Require JWT authentication
  * - Require ADMIN role
- * - Support soft delete & restore
+ * - Support soft delete
  *
  * Admin can:
  * - Create new price tables
  * - View all price tables with pagination
  * - Update price table details (pricing rules, regions, etc.)
- * - Soft delete or restore price tables
+ * - Soft delete price tables
  * - Manage price table versions
  *
  * Endpoints:
@@ -34,7 +34,6 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - GET /admin/bang-gia/:id - Get price table by ID
  * - PUT /admin/bang-gia/:id - Update price table
  * - DELETE /admin/bang-gia/:id - Soft delete price table
- * - POST /admin/bang-gia/:id/restore - Restore deleted price table
  */
 @ApiTags('ADMIN - PRICE TABLE MANAGEMENT')
 @ApiBearerAuth('JWT')

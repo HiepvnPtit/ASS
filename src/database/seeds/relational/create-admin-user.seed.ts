@@ -20,15 +20,15 @@ export const createAdminUserSeed = async (dataSource: DataSource) => {
     }
 
     // Tạo mật khẩu hash
-    const hashedPassword = await bcrypt.hash('0123456789', 10);
+    const hashedPassword = await bcrypt.hash('Admin@123', 10);
 
     // Tạo admin user
     const adminUser = new NguoiDung();
-    adminUser.maNguoiDung = 'ND_ADMIN_002';
-    adminUser.ma = 'ADMIN_002';
+    adminUser.maNguoiDung = 'ND_ADMIN_001';
+    adminUser.ma = 'ADMIN_001';
     adminUser.hoTen = 'Admin System';
     adminUser.soDienThoai = '0000000000';
-    adminUser.email = 'admin';
+    adminUser.email = 'admin@app.com';
     adminUser.matKhau = hashedPassword;
     adminUser.vaiTro = 'ADMIN';
     adminUser.trangThai = 'ACTIVE';

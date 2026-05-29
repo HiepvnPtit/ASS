@@ -14,7 +14,7 @@ import { UpdateLoaiXeDto } from './dto/update-loai-xe.dto';
  * - Full Swagger documentation
  * - JWT authentication guards
  * - Input validation
- * - Soft delete & restore capabilities
+ * - Soft delete capabilities
  * - Pagination support
  *
  * No need to write endpoint methods manually!

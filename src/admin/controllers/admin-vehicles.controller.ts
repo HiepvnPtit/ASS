@@ -18,13 +18,13 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * All endpoints:
  * - Require JWT authentication
  * - Require ADMIN role
- * - Support soft delete & restore
+ * - Support soft delete
  *
  * Admin can:
  * - Register new vehicles
  * - View all vehicles with pagination
  * - Update vehicle details (brand, model, seats, etc.)
- * - Soft delete or restore vehicles
+ * - Soft delete vehicles
  * - Manage vehicle status and relationships
  *
  * Endpoints:
@@ -34,7 +34,6 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - GET /admin/vehicles/:id - Get vehicle by ID
  * - PUT /admin/vehicles/:id - Update vehicle
  * - DELETE /admin/vehicles/:id - Soft delete vehicle
- * - POST /admin/vehicles/:id/restore - Restore deleted vehicle
  */
 @ApiTags('ADMIN - CUSTOMER VEHICLES MANAGEMENT')
 @ApiBearerAuth('JWT')

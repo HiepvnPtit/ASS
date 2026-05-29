@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { ReviewsModule } from '../reviews/reviews.module';
-import { PromotionsModule } from '../promotions/promotions.module';
 import { TripsController } from './trips.controller';
 import { TripsService } from './trips.service';
 import { TripsGateway } from './trips.gateway';
@@ -18,12 +17,12 @@ import { Xe } from '../entities/xe.entity';
 import { DanhGia } from '../entities/danh-gia.entity';
 import { ThanhToan } from '../entities/thanh-toan.entity';
 import { TinNhan } from '../entities/tin-nhan.entity';
+import { ViTri } from '../entities/vi-tri.entity';
 
 @Module({
   imports: [
     AuthModule,
     ReviewsModule,
-    PromotionsModule,
     TypeOrmModule.forFeature([
       BangGia,
       TaiXe,
@@ -37,6 +36,7 @@ import { TinNhan } from '../entities/tin-nhan.entity';
       DanhGia,
       ThanhToan,
       TinNhan,
+      ViTri,
     ]),
   ],
   controllers: [TripsController],

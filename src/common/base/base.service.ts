@@ -202,28 +202,6 @@ export abstract class BaseService<T extends ObjectLiteral> {
   }
 
   /**
-   * Restore a soft-deleted record
-   * @param id Primary key value
-   * @returns Restored entity
-   */
-  async restore(id: string | number): Promise<T> {
-    const entity = await this.repository.findOne({
-      where: { id } as unknown as FindOptionsWhere<T>,
-      withDeleted: true,
-    });
-
-    if (!entity) {
-      throw new NotFoundException(
-        `${this.entityName} with id "${id}" not found`,
-      );
-    }
-
-    // Clear the soft delete timestamp
-    const updatedEntity = Object.assign(entity, { deletedAt: null });
-    return this.repository.save(updatedEntity);
-  }
-
-  /**
    * Get paginated records with metadata
    * @param page Page number (starting from 1)
    * @param limit Records per page

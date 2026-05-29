@@ -299,41 +299,6 @@ export function BaseControllerFactory<
     async softDelete(@Param('id') id: string): Promise<T> {
       return this.service.softDelete(id);
     }
-
-    /**
-     * @POST /:id/restore - Restore soft-deleted record
-     * Requires: JWT authentication
-     * Clears the deletedAt timestamp
-     */
-    @Post(':id/restore')
-    @HttpCode(HttpStatus.OK)
-    @ApiOperation({
-      summary: `Restore deleted ${entityName}`,
-      description: `Restores a soft-deleted ${entityName} record.`,
-    })
-    @ApiParam({
-      name: 'id',
-      type: 'string',
-      description: `${entityName} ID`,
-    })
-    @ApiResponse({
-      status: 200,
-      description: `${entityName} restored successfully`,
-      type: Entity,
-    })
-    @ApiResponse({
-      status: 404,
-      description: `${entityName} not found or not deleted`,
-    })
-    @ApiResponse({
-      status: 401,
-      description: 'Unauthorized',
-    })
-    @ApiBearerAuth('JWT')
-    @UseGuards(AuthGuard('jwt'))
-    async restore(@Param('id') id: string): Promise<T> {
-      return this.service.restore(id);
-    }
   }
 
   return BaseControllerHost as any;

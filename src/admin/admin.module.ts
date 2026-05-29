@@ -27,6 +27,8 @@ import { KhachHang } from '../entities/khach-hang.entity';
 import { Xe } from '../entities/xe.entity';
 import { KhieuNai } from '../entities/khieu-nai.entity';
 import { ChuyenDi } from '../entities/chuyen-di.entity';
+import { ThanhToan } from '../entities/thanh-toan.entity';
+import { DanhGia } from '../entities/danh-gia.entity';
 
 /**
  * Admin Module - Administrative Management
@@ -44,7 +46,7 @@ import { ChuyenDi } from '../entities/chuyen-di.entity';
  * - Complaint management (KhieuNai)
  *
  * All controllers require JWT authentication and ADMIN role.
- * All endpoints support soft delete and restore operations.
+ * All endpoints support soft delete operations.
  */
 @Module({
   imports: [
@@ -55,6 +57,8 @@ import { ChuyenDi } from '../entities/chuyen-di.entity';
       Xe,
       KhieuNai,
       ChuyenDi,
+      ThanhToan,
+      DanhGia,
     ]),
     AuthModule,
     // Entity-specific modules with services

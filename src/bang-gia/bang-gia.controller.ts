@@ -33,7 +33,6 @@ import { Roles } from '../auth/decorators/roles.decorator';
  * - GET /:id - Get entry by ID (Public)
  * - PUT /:id - Update entry (ADMIN only) 🔐
  * - DELETE /:id - Soft delete entry (ADMIN only) 🔐
- * - POST /:id/restore - Restore deleted entry (ADMIN only) 🔐
  */
 @ApiTags('BangGia (Price Tables)')
 @ApiBearerAuth('JWT')
@@ -115,23 +114,5 @@ export class BangGiaController extends BaseControllerFactory(
   })
   async softDelete(@Param('id') id: string): Promise<BangGia> {
     return this.service.softDelete(id);
-  }
-
-  /**
-   * POST /:id/restore - Restore deleted price table (ADMIN only)
-   * Override to add RolesGuard and @Roles('ADMIN')
-   * Returns 403 Forbidden if user is not ADMIN
-   */
-  @Post(':id/restore')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('ADMIN')
-  @ApiOperation({
-    summary: 'Restore deleted price table (ADMIN only)',
-    description:
-      'Restores a deleted price table. Only administrators can access this endpoint.',
-  })
-  async restore(@Param('id') id: string): Promise<BangGia> {
-    return this.service.restore(id);
   }
 }

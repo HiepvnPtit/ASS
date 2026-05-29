@@ -21,9 +21,9 @@ export class CreatePaymentDto {
     description: 'Trip UUID to pay for',
     example: '550e8400-e29b-41d4-a716-446655440000',
   })
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  maChuyenDi!: string;
+  maChuyenDi?: string;
 
   @ApiProperty({
     description: 'Payment amount in currency units',

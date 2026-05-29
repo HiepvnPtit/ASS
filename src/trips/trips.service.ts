@@ -9,7 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BaseService } from '../common/base/base.service';
-import AppDataSource from '../database/data-source';
+import AppDataSource, { getDataSource } from '../database/data-source';
 import { BangGia } from '../entities/bang-gia.entity';
 import { TaiXe } from '../entities/tai-xe.entity';
 import { KhachHang } from '../entities/khach-hang.entity';
@@ -21,8 +21,8 @@ import { AnhChungThuc } from '../entities/anh-chung-thuc.entity';
 import { Xe } from '../entities/xe.entity';
 import { DanhGia } from '../entities/danh-gia.entity';
 import { ThanhToan } from '../entities/thanh-toan.entity';
+import { ViTri } from '../entities/vi-tri.entity';
 import { ReviewsService } from '../reviews/reviews.service';
-import { PromotionsService } from '../promotions/promotions.service';
 import { TripsGateway } from './trips.gateway';
 
 /**
@@ -60,8 +60,9 @@ export class TripsService extends BaseService<ChuyenDi> {
     private readonly danhGiaRepo: Repository<DanhGia>,
     @InjectRepository(ThanhToan)
     private readonly thanhToanRepo: Repository<ThanhToan>,
+    @InjectRepository(ViTri)
+    private readonly viTriRepo: Repository<ViTri>,
     private readonly reviewsService: ReviewsService,
-    private readonly promotionsService: PromotionsService,
     @Optional()
     @Inject(forwardRef(() => TripsGateway))
     private readonly tripsGateway?: TripsGateway,
@@ -83,24 +84,31 @@ export class TripsService extends BaseService<ChuyenDi> {
 
   /**
    * Estimate price based on ma_loai_xe and quang_duong_km
-   * Optionally applies voucher discount if voucher code is provided
    */
   async estimatePrice(
     maLoaiXe: string,
     quangDuongKm: number,
-    voucherCode?: string,
+    khuVuc?: string,
+    khungGio?: string,
   ) {
     // find active price for the vehicle type
     const today = new Date();
-    const bg = await this.bangGiaRepo
+    const query = this.bangGiaRepo
       .createQueryBuilder('bg')
       .where('bg.ma_loai_xe = :maLoaiXe', { maLoaiXe })
       .andWhere('(bg.hieu_luc_den IS NULL OR bg.hieu_luc_den >= :today)', {
         today,
       })
-      .andWhere('bg.hieu_luc_tu <= :today', { today })
-      .orderBy('bg.ngay_ap_dung', 'DESC')
-      .getOne();
+      .andWhere('bg.hieu_luc_tu <= :today', { today });
+
+    if (khuVuc) {
+      query.andWhere('bg.khu_vuc = :khuVuc', { khuVuc });
+    }
+    if (khungGio) {
+      query.andWhere('bg.khung_gio = :khungGio', { khungGio });
+    }
+
+    const bg = await query.orderBy('bg.ngay_ap_dung', 'DESC').getOne();
 
     if (!bg) {
       throw new BadRequestException('No pricing found for this vehicle type');
@@ -110,35 +118,12 @@ export class TripsService extends BaseService<ChuyenDi> {
     const giaTheoKm = parseFloat(bg.giaTheoKm as any);
     const giaUocTinh = giaCoBan + giaTheoKm * (quangDuongKm ?? 0);
 
-    const response: any = {
+    return {
+      maBangGia: bg.maBangGia,
       giaUocTinh: giaUocTinh.toFixed(2),
       giaCoBan: giaCoBan.toFixed(2),
       giaTheoKm: giaTheoKm.toFixed(2),
-      voucherApplied: false,
     };
-
-    // Apply voucher discount if provided
-    if (voucherCode && voucherCode.trim()) {
-      try {
-        const voucherResult =
-          await this.promotionsService.validateAndApplyVoucher(
-            voucherCode,
-            giaUocTinh,
-          );
-
-        response.voucherApplied = true;
-        response.soTienGiam = voucherResult.discountAmount.toFixed(2);
-        response.giaSauGiam = voucherResult.finalPrice.toFixed(2);
-      } catch (error: any) {
-        // Voucher is invalid - return error in response or throw
-        // For now, we'll include error message in response
-        const errorMessage =
-          error instanceof Error ? error.message : 'Invalid voucher code';
-        response.voucherError = errorMessage;
-      }
-    }
-
-    return response;
   }
 
   /**
@@ -204,10 +189,10 @@ export class TripsService extends BaseService<ChuyenDi> {
           `(
             6371 * acos(
               cos(radians(:viDo)) * 
-              cos(radians(COALESCE(tx.vi_do, 0))) * 
-              cos(radians(COALESCE(tx.kinh_do, 0)) - radians(:kinhDo)) + 
+              cos(radians(COALESCE(tx.vi_do_hien_tai, 0))) * 
+              cos(radians(COALESCE(tx.kinh_do_hien_tai, 0)) - radians(:kinhDo)) + 
               sin(radians(:viDo)) * 
-              sin(radians(COALESCE(tx.vi_do, 0)))
+              sin(radians(COALESCE(tx.vi_do_hien_tai, 0)))
             )
           )`,
           'distance',
@@ -218,10 +203,10 @@ export class TripsService extends BaseService<ChuyenDi> {
         .having(
           `6371 * acos(
             cos(radians(:viDo)) * 
-            cos(radians(COALESCE(tx.vi_do, 0))) * 
-            cos(radians(COALESCE(tx.kinh_do, 0)) - radians(:kinhDo)) + 
+            cos(radians(COALESCE(tx.vi_do_hien_tai, 0))) * 
+            cos(radians(COALESCE(tx.kinh_do_hien_tai, 0)) - radians(:kinhDo)) + 
             sin(radians(:viDo)) * 
-            sin(radians(COALESCE(tx.vi_do, 0)))
+            sin(radians(COALESCE(tx.vi_do_hien_tai, 0)))
           ) <= :radius`,
           { radius: radiusKm },
         )
@@ -271,7 +256,8 @@ export class TripsService extends BaseService<ChuyenDi> {
       role?: { id?: string | number; name?: string };
     },
   ) {
-    return AppDataSource.transaction(async (manager) => {
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
       // Only CUSTOMER can create trips
       if (this.normalizeRole(currentUser) !== 'CUSTOMER') {
         throw new ForbiddenException('Only CUSTOMER can create trips');
@@ -428,7 +414,8 @@ export class TripsService extends BaseService<ChuyenDi> {
       role?: { id?: string | number; name?: string };
     },
   ) {
-    return AppDataSource.transaction(async (manager) => {
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
       if (this.normalizeRole(currentUser) !== 'DRIVER') {
         throw new ForbiddenException('Only DRIVER can submit handover');
       }
@@ -515,7 +502,8 @@ export class TripsService extends BaseService<ChuyenDi> {
    * Cancel a trip (only if status is PENDING)
    */
   async cancelTrip(maChuyenDi: string, maKhachHang: string, lyDoHuy?: string) {
-    return AppDataSource.transaction(async (manager) => {
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
       // Find trip
       const trip = await manager.findOne(ChuyenDi, {
         where: { maChuyenDi },
@@ -523,18 +511,25 @@ export class TripsService extends BaseService<ChuyenDi> {
       });
 
       if (!trip) {
-        throw new BadRequestException('Chuyến đi không tồn tại');
+        throw new BadRequestException(
+          'ChuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi khÃƒÆ’Ã‚Â´ng tÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“n tÃƒÂ¡Ã‚ÂºÃ‚Â¡i',
+        );
       }
 
       // Verify ownership
-      if (trip.khachHang.maKhachHang !== maKhachHang) {
-        throw new ForbiddenException('Chuyến đi này không thuộc về bạn');
+      const customer = await manager.findOne(KhachHang, {
+        where: { nguoiDung: { maNguoiDung: maKhachHang } } as any,
+      });
+      if (!customer || trip.khachHang.maKhachHang !== customer.maKhachHang) {
+        throw new ForbiddenException(
+          'ChuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi nÃƒÆ’Ã‚Â y khÃƒÆ’Ã‚Â´ng thuÃƒÂ¡Ã‚Â»Ã¢â€žÂ¢c vÃƒÂ¡Ã‚Â»Ã‚Â bÃƒÂ¡Ã‚ÂºÃ‚Â¡n',
+        );
       }
 
       // Check status is PENDING
-      if (trip.trangThai !== 'PENDING') {
+      if (trip.trangThai !== 'REQUESTED') {
         throw new BadRequestException(
-          'Chỉ có thể hủy chuyến đi ở trạng thái PENDING',
+          'ChÃƒÂ¡Ã‚Â»Ã¢â‚¬Â° cÃƒÆ’Ã‚Â³ thÃƒÂ¡Ã‚Â»Ã†â€™ hÃƒÂ¡Ã‚Â»Ã‚Â§y chuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi ÃƒÂ¡Ã‚Â»Ã…Â¸ trÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i PENDING',
         );
       }
 
@@ -554,7 +549,8 @@ export class TripsService extends BaseService<ChuyenDi> {
       await manager.save(LichSuTrangThai, ls);
 
       return {
-        message: 'Chuyến đi đã được hủy',
+        message:
+          'ChuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi Ãƒâ€žÃ¢â‚¬ËœÃƒÆ’Ã‚Â£ Ãƒâ€žÃ¢â‚¬ËœÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã‚Â£c hÃƒÂ¡Ã‚Â»Ã‚Â§y',
         trip,
       };
     });
@@ -569,7 +565,8 @@ export class TripsService extends BaseService<ChuyenDi> {
     soSao: number,
     noiDung?: string,
   ) {
-    return AppDataSource.transaction(async (manager) => {
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
       // Find trip
       const trip = await manager.findOne(ChuyenDi, {
         where: { maChuyenDi },
@@ -577,12 +574,19 @@ export class TripsService extends BaseService<ChuyenDi> {
       });
 
       if (!trip) {
-        throw new BadRequestException('Chuyến đi không tồn tại');
+        throw new BadRequestException(
+          'ChuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi khÃƒÆ’Ã‚Â´ng tÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“n tÃƒÂ¡Ã‚ÂºÃ‚Â¡i',
+        );
       }
 
       // Verify ownership
-      if (trip.khachHang.maKhachHang !== maKhachHang) {
-        throw new ForbiddenException('Chuyến đi này không thuộc về bạn');
+      const customer = await manager.findOne(KhachHang, {
+        where: { nguoiDung: { maNguoiDung: maKhachHang } } as any,
+      });
+      if (!customer || trip.khachHang.maKhachHang !== customer.maKhachHang) {
+        throw new ForbiddenException(
+          'ChuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi nÃƒÆ’Ã‚Â y khÃƒÆ’Ã‚Â´ng thuÃƒÂ¡Ã‚Â»Ã¢â€žÂ¢c vÃƒÂ¡Ã‚Â»Ã‚Â bÃƒÂ¡Ã‚ÂºÃ‚Â¡n',
+        );
       }
 
       // Check if review already exists
@@ -590,12 +594,14 @@ export class TripsService extends BaseService<ChuyenDi> {
         where: { chuyenDi: { maChuyenDi } },
       });
       if (existing) {
-        throw new BadRequestException('Chuyến đi này đã được đánh giá');
+        throw new BadRequestException(
+          'ChuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi nÃƒÆ’Ã‚Â y Ãƒâ€žÃ¢â‚¬ËœÃƒÆ’Ã‚Â£ Ãƒâ€žÃ¢â‚¬ËœÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã‚Â£c Ãƒâ€žÃ¢â‚¬ËœÃƒÆ’Ã‚Â¡nh giÃƒÆ’Ã‚Â¡',
+        );
       }
 
       // Validate soSao
       if (soSao < 1 || soSao > 5) {
-        throw new BadRequestException('Số sao phải từ 1 đến 5');
+        throw new BadRequestException('Sá»‘ sao pháº£i tá»« 1 Ä‘áº¿n 5');
       }
 
       // Create review - maDanhGia is auto-generated by database via @PrimaryGeneratedColumn('uuid')
@@ -613,50 +619,64 @@ export class TripsService extends BaseService<ChuyenDi> {
       }
 
       return {
-        message: 'Đánh giá chuyến đi thành công',
+        message:
+          'Ãƒâ€žÃ‚ÂÃƒÆ’Ã‚Â¡nh giÃƒÆ’Ã‚Â¡ chuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng',
         danhGia: saved,
       };
     });
   }
 
   /**
-   * Tài xế nhận cuốc
-   * Cập nhật ma_tai_xe vào chuyến đi, đổi trạng thái thành 'ACCEPTED'
+   * TÃƒÆ’Ã‚Â i xÃƒÂ¡Ã‚ÂºÃ‚Â¿ nhÃƒÂ¡Ã‚ÂºÃ‚Â­n cuÃƒÂ¡Ã‚Â»Ã¢â‚¬Ëœc
+   * CÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t ma_tai_xe vÃƒÆ’Ã‚Â o chuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi, Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¢i trÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i thÃƒÆ’Ã‚Â nh 'ACCEPTED'
    */
   async acceptTrip(maChuyenDi: string, maTaiXe: string) {
-    return AppDataSource.transaction(async (manager) => {
-      // Kiểm tra chuyến đi tồn tại
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
+      // Kiá»ƒm tra chuyáº¿n Ä‘i tá»“n táº¡i
       const trip = await manager.findOne(ChuyenDi, {
         where: { maChuyenDi },
         relations: ['taiXe'],
       });
 
       if (!trip) {
-        throw new BadRequestException('Chuyến đi không tồn tại');
-      }
-
-      // Kiểm tra trạng thái là PENDING
-      if (trip.trangThai !== 'PENDING') {
         throw new BadRequestException(
-          `Chuyến đi này không ở trạng thái PENDING, hiện tại: ${trip.trangThai}`,
+          'ChuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi khÃƒÆ’Ã‚Â´ng tÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“n tÃƒÂ¡Ã‚ÂºÃ‚Â¡i',
         );
       }
 
-      // Kiểm tra không có tài xế khác đã nhận
-      if (trip.taiXe && trip.taiXe.maTaiXe !== maTaiXe) {
-        throw new BadRequestException('Chuyến đi này đã được tài xế khác nhận');
+      // KiÃƒÂ¡Ã‚Â»Ã†â€™m tra trÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i lÃƒÆ’Ã‚Â  PENDING
+      if (trip.trangThai !== 'REQUESTED') {
+        throw new BadRequestException(
+          `ChuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi nÃƒÆ’Ã‚Â y khÃƒÆ’Ã‚Â´ng ÃƒÂ¡Ã‚Â»Ã…Â¸ trÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i PENDING, hiÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡n tÃƒÂ¡Ã‚ÂºÃ‚Â¡i: ${trip.trangThai}`,
+        );
       }
 
-      // Kiểm tra tài xế tồn tại
-      const driver = await manager.findOne(TaiXe, {
+      // KiÃƒÂ¡Ã‚Â»Ã†â€™m tra khÃƒÆ’Ã‚Â´ng cÃƒÆ’Ã‚Â³ tÃƒÆ’Ã‚Â i xÃƒÂ¡Ã‚ÂºÃ‚Â¿ khÃƒÆ’Ã‚Â¡c Ãƒâ€žÃ¢â‚¬ËœÃƒÆ’Ã‚Â£ nhÃƒÂ¡Ã‚ÂºÃ‚Â­n
+      if (trip.taiXe && trip.taiXe.maTaiXe !== maTaiXe) {
+        throw new BadRequestException(
+          'ChuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi nÃƒÆ’Ã‚Â y Ãƒâ€žÃ¢â‚¬ËœÃƒÆ’Ã‚Â£ Ãƒâ€žÃ¢â‚¬ËœÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã‚Â£c tÃƒÆ’Ã‚Â i xÃƒÂ¡Ã‚ÂºÃ‚Â¿ khÃƒÆ’Ã‚Â¡c nhÃƒÂ¡Ã‚ÂºÃ‚Â­n',
+        );
+      }
+
+      // KiÃƒÂ¡Ã‚Â»Ã†â€™m tra tÃƒÆ’Ã‚Â i xÃƒÂ¡Ã‚ÂºÃ‚Â¿ tÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“n tÃƒÂ¡Ã‚ÂºÃ‚Â¡i
+      let driver = await manager.findOne(TaiXe, {
         where: { maTaiXe },
       });
 
       if (!driver) {
-        throw new BadRequestException('Tài xế không tồn tại');
+        driver = await manager.findOne(TaiXe, {
+          where: { nguoiDung: { maNguoiDung: maTaiXe } },
+        });
       }
 
-      // Cập nhật ma_tai_xe và trạng thái
+      if (!driver) {
+        throw new BadRequestException(
+          'TÃƒÆ’Ã‚Â i xÃƒÂ¡Ã‚ÂºÃ‚Â¿ khÃƒÆ’Ã‚Â´ng tÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“n tÃƒÂ¡Ã‚ÂºÃ‚Â¡i',
+        );
+      }
+
+      // CÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t ma_tai_xe vÃƒÆ’Ã‚Â  trÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i
       trip.taiXe = driver;
       trip.trangThai = 'ACCEPTED';
       await manager.save(ChuyenDi, trip);
@@ -672,7 +692,7 @@ export class TripsService extends BaseService<ChuyenDi> {
       await manager.save(LichSuTrangThai, lichSu);
 
       return {
-        message: 'Nhận cuốc thành công',
+        message: 'NhÃƒÂ¡Ã‚ÂºÃ‚Â­n cuÃƒÂ¡Ã‚Â»Ã¢â‚¬Ëœc thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng',
         trip: {
           maChuyenDi: trip.maChuyenDi,
           maTaiXe: trip.taiXe.maTaiXe,
@@ -683,8 +703,8 @@ export class TripsService extends BaseService<ChuyenDi> {
   }
 
   /**
-   * Cập nhật trạng thái chuyến đi
-   * Cho phép tài xế đổi trạng thái tuần tự:
+   * CÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t trÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i chuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi
+   * Cho phÃƒÆ’Ã‚Â©p tÃƒÆ’Ã‚Â i xÃƒÂ¡Ã‚ÂºÃ‚Â¿ Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¢i trÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i tuÃƒÂ¡Ã‚ÂºÃ‚Â§n tÃƒÂ¡Ã‚Â»Ã‚Â±:
    * PENDING -> ACCEPTED -> ARRIVED -> STARTED -> COMPLETED
    */
   async updateTripStatus(
@@ -692,25 +712,36 @@ export class TripsService extends BaseService<ChuyenDi> {
     maTaiXe: string,
     newStatus: string,
   ) {
-    return AppDataSource.transaction(async (manager) => {
-      // Kiểm tra chuyến đi tồn tại
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
+      // Kiá»ƒm tra chuyáº¿n Ä‘i tá»“n táº¡i
       const trip = await manager.findOne(ChuyenDi, {
         where: { maChuyenDi },
         relations: ['taiXe'],
       });
 
       if (!trip) {
-        throw new BadRequestException('Chuyến đi không tồn tại');
-      }
-
-      // Kiểm tra tài xế là chủ sở hữu chuyến đi
-      if (!trip.taiXe || trip.taiXe.maTaiXe !== maTaiXe) {
-        throw new ForbiddenException(
-          'Bạn không có quyền cập nhật chuyến đi này',
+        throw new BadRequestException(
+          'ChuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi khÃƒÆ’Ã‚Â´ng tÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“n tÃƒÂ¡Ã‚ÂºÃ‚Â¡i',
         );
       }
 
-      // Kiểm tra status transition hợp lệ
+      // KiÃƒÂ¡Ã‚Â»Ã†â€™m tra tÃƒÆ’Ã‚Â i xÃƒÂ¡Ã‚ÂºÃ‚Â¿ lÃƒÆ’Ã‚Â  chÃƒÂ¡Ã‚Â»Ã‚Â§ sÃƒÂ¡Ã‚Â»Ã…Â¸ hÃƒÂ¡Ã‚Â»Ã‚Â¯u chuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi
+      // Try to find driver by maTaiXe or maNguoiDung
+      let driverId = maTaiXe;
+      if (trip.taiXe && trip.taiXe.maTaiXe !== maTaiXe) {
+        const driver = await manager.findOne(TaiXe, {
+          where: { nguoiDung: { maNguoiDung: maTaiXe } },
+        });
+        if (driver) driverId = driver.maTaiXe;
+      }
+      if (!trip.taiXe || trip.taiXe.maTaiXe !== driverId) {
+        throw new ForbiddenException(
+          'BÃƒÂ¡Ã‚ÂºÃ‚Â¡n khÃƒÆ’Ã‚Â´ng cÃƒÆ’Ã‚Â³ quyÃƒÂ¡Ã‚Â»Ã‚Ân cÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t chuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi nÃƒÆ’Ã‚Â y',
+        );
+      }
+
+      // Kiá»ƒm tra status transition há»£p lá»‡
       const validTransitions: { [key: string]: string[] } = {
         PENDING: ['ACCEPTED'],
         ACCEPTED: ['ARRIVED'],
@@ -721,31 +752,31 @@ export class TripsService extends BaseService<ChuyenDi> {
       const allowedNextStatuses = validTransitions[trip.trangThai] || [];
       if (!allowedNextStatuses.includes(newStatus)) {
         throw new BadRequestException(
-          `Không thể chuyển từ ${trip.trangThai} sang ${newStatus}. Trạng thái hợp lệ: ${allowedNextStatuses.join(', ')}`,
+          `KhÃƒÆ’Ã‚Â´ng thÃƒÂ¡Ã‚Â»Ã†â€™ chuyÃƒÂ¡Ã‚Â»Ã†â€™n tÃƒÂ¡Ã‚Â»Ã‚Â« ${trip.trangThai} sang ${newStatus}. TrÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i hÃƒÂ¡Ã‚Â»Ã‚Â£p lÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡: ${allowedNextStatuses.join(', ')}`,
         );
       }
 
       const oldStatus = trip.trangThai;
       trip.trangThai = newStatus;
 
-      // Nếu chuyển sang STARTED, cập nhật thoiGianBatDau
+      // Náº¿u chuyá»ƒn sang STARTED, cáº­p nháº­t thoiGianBatDau
       if (newStatus === 'STARTED' && !trip.thoiGianBatDau) {
         trip.thoiGianBatDau = new Date();
       }
 
-      // Nếu chuyển sang COMPLETED, cập nhật thoiGianKetThuc
+      // Náº¿u chuyá»ƒn sang COMPLETED, cáº­p nháº­t thoiGianKetThuc
       if (newStatus === 'COMPLETED') {
         trip.thoiGianKetThuc = new Date();
       }
 
       await manager.save(ChuyenDi, trip);
 
-      // Tạo lịch sử trạng thái
+      // TÃƒÂ¡Ã‚ÂºÃ‚Â¡o lÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¹ch sÃƒÂ¡Ã‚Â»Ã‚Â­ trÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i
       const lichSu = manager.create(LichSuTrangThai, {
         chuyenDi: trip,
         trangThaiCu: oldStatus,
         trangThaiMoi: newStatus,
-        nguoiCapNhat: maTaiXe,
+        nguoiCapNhat: driverId,
       });
 
       await manager.save(LichSuTrangThai, lichSu);
@@ -763,7 +794,7 @@ export class TripsService extends BaseService<ChuyenDi> {
       }
 
       return {
-        message: `Cập nhật trạng thái chuyến đi thành ${newStatus} thành công`,
+        message: `CÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t trÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i chuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi thÃƒÆ’Ã‚Â nh ${newStatus} thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng`,
         trip: {
           maChuyenDi: trip.maChuyenDi,
           trangThai: trip.trangThai,
@@ -784,7 +815,8 @@ export class TripsService extends BaseService<ChuyenDi> {
     maGiaoDichNgoai?: string,
     ma?: string,
   ) {
-    return AppDataSource.transaction(async (manager) => {
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
       // Find trip
       const trip = await manager.findOne(ChuyenDi, {
         where: { maChuyenDi },
@@ -792,13 +824,15 @@ export class TripsService extends BaseService<ChuyenDi> {
       });
 
       if (!trip) {
-        throw new BadRequestException('Chuyến đi không tồn tại');
+        throw new BadRequestException(
+          'ChuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi khÃƒÆ’Ã‚Â´ng tÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“n tÃƒÂ¡Ã‚ÂºÃ‚Â¡i',
+        );
       }
 
       // Validate trip status (must be COMPLETED)
       if (trip.trangThai !== 'COMPLETED') {
         throw new BadRequestException(
-          `Chỉ có thể tạo thanh toán cho chuyến đi đã hoàn thành. Trạng thái hiện tại: ${trip.trangThai}`,
+          `ChÃƒÂ¡Ã‚Â»Ã¢â‚¬Â° cÃƒÆ’Ã‚Â³ thÃƒÂ¡Ã‚Â»Ã†â€™ tÃƒÂ¡Ã‚ÂºÃ‚Â¡o thanh toÃƒÆ’Ã‚Â¡n cho chuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi Ãƒâ€žÃ¢â‚¬ËœÃƒÆ’Ã‚Â£ hoÃƒÆ’Ã‚Â n thÃƒÆ’Ã‚Â nh. TrÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i hiÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡n tÃƒÂ¡Ã‚ÂºÃ‚Â¡i: ${trip.trangThai}`,
         );
       }
 
@@ -808,18 +842,19 @@ export class TripsService extends BaseService<ChuyenDi> {
       });
 
       if (existingPayment) {
-        throw new BadRequestException('Chuyến đi này đã có bản ghi thanh toán');
+        throw new BadRequestException(
+          'ChuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi nÃƒÆ’Ã‚Â y Ãƒâ€žÃ¢â‚¬ËœÃƒÆ’Ã‚Â£ cÃƒÆ’Ã‚Â³ bÃƒÂ¡Ã‚ÂºÃ‚Â£n ghi thanh toÃƒÆ’Ã‚Â¡n',
+        );
       }
 
       // Validate payment amount
       if (soTien <= 0) {
-        throw new BadRequestException('Số tiền phải lớn hơn 0');
+        throw new BadRequestException('Sá»‘ tiá»�??n pháº£i lá»›n hÆ¡n 0');
       }
 
       // Create payment record
-      const maThanhToan = ma || `pt_${Date.now()}`;
       const thanhToan = new ThanhToan();
-      thanhToan.maThanhToan = maThanhToan;
+      if (ma) thanhToan.maThanhToan = ma;
       thanhToan.chuyenDi = trip;
       thanhToan.soTien = soTien.toString();
       thanhToan.phuongThucThanhToan = phuongThucThanhToan;
@@ -830,7 +865,8 @@ export class TripsService extends BaseService<ChuyenDi> {
       const saved = await manager.save(ThanhToan, thanhToan);
 
       return {
-        message: 'Tạo bản ghi thanh toán thành công',
+        message:
+          'TÃƒÂ¡Ã‚ÂºÃ‚Â¡o bÃƒÂ¡Ã‚ÂºÃ‚Â£n ghi thanh toÃƒÆ’Ã‚Â¡n thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng',
         thanhToan: saved,
       };
     });
@@ -844,7 +880,8 @@ export class TripsService extends BaseService<ChuyenDi> {
     trangThaiThanhToan: string,
     ghiChu?: string,
   ) {
-    return AppDataSource.transaction(async (manager) => {
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
       // Find payment
       const payment = await manager.findOne(ThanhToan, {
         where: { maThanhToan },
@@ -852,14 +889,16 @@ export class TripsService extends BaseService<ChuyenDi> {
       });
 
       if (!payment) {
-        throw new BadRequestException('Bản ghi thanh toán không tồn tại');
+        throw new BadRequestException(
+          'BÃƒÂ¡Ã‚ÂºÃ‚Â£n ghi thanh toÃƒÆ’Ã‚Â¡n khÃƒÆ’Ã‚Â´ng tÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“n tÃƒÂ¡Ã‚ÂºÃ‚Â¡i',
+        );
       }
 
       // Validate status transition
       const validStatuses = ['PENDING', 'COMPLETED', 'FAILED', 'REFUNDED'];
       if (!validStatuses.includes(trangThaiThanhToan)) {
         throw new BadRequestException(
-          `Trạng thái không hợp lệ. Trạng thái hợp lệ: ${validStatuses.join(', ')}`,
+          `TrÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i khÃƒÆ’Ã‚Â´ng hÃƒÂ¡Ã‚Â»Ã‚Â£p lÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡. TrÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i hÃƒÂ¡Ã‚Â»Ã‚Â£p lÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡: ${validStatuses.join(', ')}`,
         );
       }
 
@@ -875,7 +914,7 @@ export class TripsService extends BaseService<ChuyenDi> {
       const updated = await manager.save(ThanhToan, payment);
 
       return {
-        message: `Cập nhật trạng thái thanh toán từ ${oldStatus} sang ${trangThaiThanhToan} thành công`,
+        message: `CÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t trÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i thanh toÃƒÆ’Ã‚Â¡n tÃƒÂ¡Ã‚Â»Ã‚Â« ${oldStatus} sang ${trangThaiThanhToan} thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng`,
         thanhToan: updated,
         ghiChu: ghiChu,
       };
@@ -893,13 +932,15 @@ export class TripsService extends BaseService<ChuyenDi> {
 
     if (!payment) {
       return {
-        message: 'Không có bản ghi thanh toán cho chuyến đi này',
+        message:
+          'KhÃƒÆ’Ã‚Â´ng cÃƒÆ’Ã‚Â³ bÃƒÂ¡Ã‚ÂºÃ‚Â£n ghi thanh toÃƒÆ’Ã‚Â¡n cho chuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi nÃƒÆ’Ã‚Â y',
         thanhToan: null,
       };
     }
 
     return {
-      message: 'Lấy thông tin thanh toán thành công',
+      message:
+        'LÃƒÂ¡Ã‚ÂºÃ‚Â¥y thÃƒÆ’Ã‚Â´ng tin thanh toÃƒÆ’Ã‚Â¡n thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng',
       thanhToan: payment,
     };
   }
@@ -916,7 +957,7 @@ export class TripsService extends BaseService<ChuyenDi> {
     mediaUrl?: string,
   ) {
     // Import TinNhan in module first
-    const TinNhan = await import('../entities/tin-nhan.entity').then(
+    const TinNhan = await import('../entities/tin-nhan.entity.js').then(
       (m) => m.TinNhan,
     );
     const TinNhanRepo = AppDataSource.getRepository(TinNhan);
@@ -935,12 +976,76 @@ export class TripsService extends BaseService<ChuyenDi> {
   }
 
   /**
+   * Save customer location for real-time tracking
+   * Called by WebSocket gateway when customer sends share_location event
+   * Stores in ViTri table with loai_doi_tuong='CUSTOMER' and loai_su_kien
+   *
+   * @param maChuyenDi - Trip ID
+   * @param userId - User ID (from JWT auth)
+   * @param viDo - Latitude
+   * @param kinhDo - Longitude
+   * @param loaiSuKien - Event type: REALTIME_SHARE, PICKUP_UPDATE, ARRIVED
+   */
+  async saveCustomerLocation(
+    maChuyenDi: string | undefined,
+    userId: string | undefined,
+    viDo: number,
+    kinhDo: number,
+    loaiSuKien:
+      | 'REALTIME_SHARE'
+      | 'PICKUP_UPDATE'
+      | 'ARRIVED' = 'REALTIME_SHARE',
+  ) {
+    try {
+      let trip: ChuyenDi | null = null;
+
+      // Only look up trip if maChuyenDi is provided
+      if (maChuyenDi) {
+        trip = await this.chuyenDiRepo.findOne({
+          where: { maChuyenDi },
+          relations: ['khachHang'],
+        });
+
+        if (!trip) {
+          throw new BadRequestException('Chuy?n ?i kh�ng t?n t?i');
+        }
+      }
+
+      // Create location record in ViTri table
+      const viTri = this.viTriRepo.create({
+        ...(trip ? { chuyenDi: trip } : {}),
+        taiXe: null,
+        loaiDoiTuong: 'CUSTOMER',
+        loaiSuKien,
+        viDo,
+        kinhDo,
+        thoiGianCapNhat: new Date(),
+      });
+
+      const saved = await this.viTriRepo.save(viTri);
+
+      return {
+        maViTri: saved.maViTri,
+        maChuyenDi: saved.chuyenDi?.maChuyenDi ?? maChuyenDi ?? null,
+        loaiDoiTuong: saved.loaiDoiTuong,
+        loaiSuKien: saved.loaiSuKien,
+        viDo: saved.viDo,
+        kinhDo: saved.kinhDo,
+        thoiGianCapNhat: saved.thoiGianCapNhat,
+      };
+    } catch (error: any) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      throw new BadRequestException('Không thể lưu vị trí: ' + errorMsg);
+    }
+  }
+
+  /**
    * Get all messages for a trip, sorted by timestamp ascending (oldest first)
    * @param maChuyenDi - Trip ID
    * @returns Array of messages
    */
   async getMessages(maChuyenDi: string) {
-    const TinNhan = await import('../entities/tin-nhan.entity').then(
+    const TinNhan = await import('../entities/tin-nhan.entity.js').then(
       (m) => m.TinNhan,
     );
     const TinNhanRepo = AppDataSource.getRepository(TinNhan);
@@ -978,8 +1083,7 @@ export class TripsService extends BaseService<ChuyenDi> {
       .createQueryBuilder('trip')
       .leftJoinAndSelect('trip.xe', 'xe')
       .leftJoinAndSelect('xe.loaiXe', 'loaiXe')
-      .leftJoinAndSelect('trip.thanhToan', 'thanhToan')
-      .leftJoinAndSelect('trip.lichSuTrangThai', 'lichSu')
+      .leftJoinAndSelect('trip.lichSuTrangThais', 'lichSu')
       .orderBy('trip.thoiGianBatDau', 'DESC')
       .skip(skip)
       .take(limit);
@@ -998,13 +1102,16 @@ export class TripsService extends BaseService<ChuyenDi> {
         .leftJoinAndSelect('taiXe.nguoiDung', 'driverUser')
         .where('driverUser.maNguoiDung = :maNguoiDung', { maNguoiDung });
     } else {
-      throw new BadRequestException('Vai trò không hợp lệ');
+      throw new BadRequestException(
+        'Vai trÃƒÆ’Ã‚Â² khÃƒÆ’Ã‚Â´ng hÃƒÂ¡Ã‚Â»Ã‚Â£p lÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡',
+      );
     }
 
     const [trips, total] = await query.getManyAndCount();
 
     return {
-      message: 'Lấy lịch sử chuyến đi thành công',
+      message:
+        'LÃƒÂ¡Ã‚ÂºÃ‚Â¥y lÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¹ch sÃƒÂ¡Ã‚Â»Ã‚Â­ chuyÃƒÂ¡Ã‚ÂºÃ‚Â¿n Ãƒâ€žÃ¢â‚¬Ëœi thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng',
       data: trips,
       pagination: {
         page,
@@ -1013,6 +1120,93 @@ export class TripsService extends BaseService<ChuyenDi> {
         totalPages: Math.ceil(total / limit),
         hasNextPage: page < Math.ceil(total / limit),
         hasPrevPage: page > 1,
+      },
+    };
+  }
+
+  /**
+   * Get available trips matching driver skills
+   * Used by REST polling (Option 3) - drivers call this periodically
+   * Returns trips in REQUESTED status where vehicle type matches driver skills
+   *
+   * @param maTaiXe - Driver ID
+   * @param page - Page number (1-based)
+   * @param limit - Records per page
+   */
+  async getAvailableTripsForDriver(
+    maTaiXeOrNguoiDung: string,
+    page: number = 1,
+    limit: number = 10,
+  ) {
+    // Try to find driver by maTaiXe first, then by maNguoiDung
+    let driver = await this.taiXeRepo.findOne({
+      where: { maTaiXe: maTaiXeOrNguoiDung },
+      relations: ['kiNangs', 'kiNangs.loaiXe'],
+    });
+
+    if (!driver) {
+      driver = await this.taiXeRepo.findOne({
+        where: { nguoiDung: { maNguoiDung: maTaiXeOrNguoiDung } as any },
+        relations: ['kiNangs', 'kiNangs.loaiXe'],
+      });
+    }
+
+    if (!driver) {
+      throw new BadRequestException('Driver not found');
+    }
+
+    const maLoaiXeList =
+      driver.kiNangs?.map((kn) => kn.loaiXe?.maLoaiXe).filter(Boolean) || [];
+
+    if (maLoaiXeList.length === 0) {
+      return {
+        message: 'No available trips found',
+        data: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+      };
+    }
+
+    // Paginate
+    page = Math.max(1, page);
+    limit = Math.min(100, Math.max(1, limit));
+    const skip = (page - 1) * limit;
+
+    // Find trips in REQUESTED status with matching vehicle type and no driver assigned
+    const [trips, total] = await this.chuyenDiRepo
+      .createQueryBuilder('trip')
+      .leftJoinAndSelect('trip.xe', 'xe')
+      .leftJoinAndSelect('xe.loaiXe', 'loaiXe')
+      .leftJoinAndSelect('trip.khachHang', 'khachHang')
+      .leftJoinAndSelect('khachHang.nguoiDung', 'customerUser')
+      .where('trip.trang_thai = :status', { status: 'REQUESTED' })
+      .andWhere('trip.ma_tai_xe IS NULL')
+      .andWhere('loaiXe.ma_loai_xe IN (:...maLoaiXeList)', { maLoaiXeList })
+      .orderBy('trip.thoiGianDat', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    const data = trips.map((trip) => ({
+      maChuyenDi: trip.maChuyenDi,
+      diemDon: trip.diemDon,
+      diemDen: trip.diemDen,
+      quangDuongKm: trip.quangDuongKm,
+      giaUocTinh: trip.giaUocTinh,
+      thoiGianBatDau: trip.thoiGianBatDau,
+      loaiXe: trip.xe?.loaiXe?.ma,
+      maLoaiXe: trip.xe?.loaiXe?.maLoaiXe,
+      tenKhachHang: trip.khachHang?.nguoiDung?.hoTen,
+      soDienThoai: trip.khachHang?.nguoiDung?.soDienThoai,
+    }));
+
+    return {
+      message: 'Available trips retrieved successfully',
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }

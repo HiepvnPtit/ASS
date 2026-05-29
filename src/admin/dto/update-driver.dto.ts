@@ -1,18 +1,10 @@
-import {
-  IsOptional,
-  IsString,
-  IsDecimal,
-  Min,
-  Max,
-  MinLength,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsOptional, IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateDriverDto {
   @ApiProperty({
     example: 'A123456789',
-    description: 'Số giấy phép lái xe',
+    description: 'So giay phep lai xe',
     required: false,
   })
   @IsOptional()
@@ -22,7 +14,7 @@ export class UpdateDriverDto {
 
   @ApiProperty({
     example: '123456789012',
-    description: 'Căn cước công dân',
+    description: 'Can cuoc cong dan',
     required: false,
   })
   @IsOptional()
@@ -31,20 +23,8 @@ export class UpdateDriverDto {
   canCuocCongDan?: string;
 
   @ApiProperty({
-    example: 4.8,
-    description: 'Điểm đánh giá (0-5)',
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsDecimal({ decimal_digits: '1,2' })
-  @Min(0)
-  @Max(5)
-  diemDanhGia?: number;
-
-  @ApiProperty({
     example: '2030-01-01',
-    description: 'Hạn giấy phép lái xe',
+    description: 'Han giay phep lai xe',
     required: false,
   })
   @IsOptional()
@@ -52,8 +32,8 @@ export class UpdateDriverDto {
   hanGiayPhepLaiXe?: string;
 
   @ApiProperty({
-    example: 'Lỗi nhập liệu hạn giấy phép',
-    description: 'Ghi chú sửa chữa',
+    example: 'Loi nhap lieu han giay phep',
+    description: 'Ghi chu sua chua',
     required: false,
   })
   @IsOptional()

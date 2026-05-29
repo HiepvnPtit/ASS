@@ -83,9 +83,10 @@ export class SimpleAuthService {
           nguoiDung: user,
           soGiayPhepLaiXe: dto.soGiayPhepLaiXe,
           canCuocCongDan: dto.canCuocCongDan,
-          hanGiayPhepLaiXe: dto.hanGiayPhepLaiXe
-            ? new Date(dto.hanGiayPhepLaiXe)
-            : undefined,
+          hanGiayPhepLaiXe:
+            dto.hanGiayPhepLaiXe && !isNaN(Date.parse(dto.hanGiayPhepLaiXe))
+              ? new Date(dto.hanGiayPhepLaiXe)
+              : undefined,
         });
         await this.driversRepo.save(tx);
         return {

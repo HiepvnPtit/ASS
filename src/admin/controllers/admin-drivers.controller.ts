@@ -53,7 +53,7 @@ export class AdminDriversController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Danh sách tài xế' })
   async getAllDrivers(@Query() query: GetPaginationQueryDto) {
-    return this.adminService.getAllDrivers(query);
+    return await this.adminService.getAllDrivers(query);
   }
 
   /**
@@ -101,7 +101,7 @@ export class AdminDriversController {
     @Param('id') driverId: string,
     @Body() updateDto: UpdateDriverDto,
   ) {
-    return this.adminService.updateDriver(driverId, updateDto);
+    return await this.adminService.updateDriver(driverId, updateDto);
   }
 
   /**
