@@ -1,0 +1,11 @@
+*** Begin Patch
+*** Update File: src/trips/trips.service.ts
+@@
+      // Verify ownership
+-     if (trip.khachHang.maKhachHang !== maKhachHang) {
++     const customer = await manager.findOne(KhachHang, {
++       where: { nguoiDung: { maNguoiDung: maKhachHang } } as any,
++     });
++     if (!customer || trip.khachHang.maKhachHang !== customer.maKhachHang) {
+        throw new ForbiddenException(
+*** End Patch
