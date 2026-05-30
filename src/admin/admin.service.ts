@@ -1,4 +1,4 @@
-import {
+﻿import {
   Injectable,
   NotFoundException,
   BadRequestException,
@@ -483,7 +483,7 @@ export class AdminService {
     const skip = (page - 1) * limit;
 
     const [vehicles, total] = await this.xeRepo.findAndCount({
-      relations: ['taiXe'],
+      relations: ['khachHang', 'loaiXe'],
       skip,
       take: limit,
       order: { maXe: 'DESC' },
@@ -512,7 +512,7 @@ export class AdminService {
       throw new NotFoundException('Xe không tồn tại');
     }
 
-    await this.xeRepo.remove(vehicle);
+    await this.xeRepo.softRemove(vehicle);
 
     return {
       message: `Xóa xe ${vehicleId} thành công. Lý do: ${reason}`,
