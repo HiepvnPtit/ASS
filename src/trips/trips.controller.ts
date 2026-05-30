@@ -85,10 +85,11 @@ export class TripsController {
   @ApiOperation({
     summary: 'Estimate price for given vehicle type and distance',
     description:
-      'Calculate estimated trip price based on vehicle type and distance',
+      'Calculate estimated trip price based on vehicle type and distance. Time slot is ignored; khu_vuc remains optional.',
   })
   @ApiQuery({ name: 'ma_loai_xe', required: true })
   @ApiQuery({ name: 'quang_duong_km', required: false })
+  @ApiQuery({ name: 'khu_vuc', required: false })
   @ApiResponse({
     status: 200,
     description: 'Price estimate calculated successfully',
@@ -109,10 +110,9 @@ export class TripsController {
     @Query('ma_loai_xe') maLoaiXe: string,
     @Query('quang_duong_km') quangDuongKm: string,
     @Query('khu_vuc') khuVuc?: string,
-    @Query('khung_gio') khungGio?: string,
   ) {
     const km = Number(quangDuongKm || 0);
-    return this.service.estimatePrice(maLoaiXe, km, khuVuc, khungGio);
+    return this.service.estimatePrice(maLoaiXe, km, khuVuc);
   }
 
   @Get('matching')

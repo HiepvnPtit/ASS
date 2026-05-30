@@ -85,12 +85,7 @@ export class TripsService extends BaseService<ChuyenDi> {
   /**
    * Estimate price based on ma_loai_xe and quang_duong_km
    */
-  async estimatePrice(
-    maLoaiXe: string,
-    quangDuongKm: number,
-    khuVuc?: string,
-    khungGio?: string,
-  ) {
+  async estimatePrice(maLoaiXe: string, quangDuongKm: number, khuVuc?: string) {
     // find active price for the vehicle type
     const today = new Date();
     const query = this.bangGiaRepo
@@ -104,11 +99,12 @@ export class TripsService extends BaseService<ChuyenDi> {
     if (khuVuc) {
       query.andWhere('bg.khu_vuc = :khuVuc', { khuVuc });
     }
-    if (khungGio) {
-      query.andWhere('bg.khung_gio = :khungGio', { khungGio });
-    }
 
-    const bg = await query.orderBy('bg.ngay_ap_dung', 'DESC').getOne();
+    const bg = await query
+      .orderBy('bg.ngay_ap_dung', 'DESC')
+      .addOrderBy('bg.created_at', 'DESC')
+      .addOrderBy('bg.ma_bang_gia', 'DESC')
+      .getOne();
 
     if (!bg) {
       throw new BadRequestException('No pricing found for this vehicle type');
