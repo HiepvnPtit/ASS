@@ -86,19 +86,28 @@ export class TripsService extends BaseService<ChuyenDi> {
    * Estimate price based on ma_loai_xe and quang_duong_km
    */
   async estimatePrice(maLoaiXe: string, quangDuongKm: number, khuVuc?: string) {
-    // find active price for the vehicle type
-    const today = new Date();
+    console.log('[estimatePrice] maLoaiXe:', maLoaiXe);
+
+    // find active price for the vehicle type via the relation to LoaiXe
     const query = this.bangGiaRepo
       .createQueryBuilder('bg')
-      .where('bg.ma_loai_xe = :maLoaiXe', { maLoaiXe })
-      .andWhere('(bg.hieu_luc_den IS NULL OR bg.hieu_luc_den >= :today)', {
-        today,
-      })
-      .andWhere('bg.hieu_luc_tu <= :today', { today });
+      .innerJoin('bg.loaiXe', 'loaiXe')
+      .where('loaiXe.maLoaiXe = :maLoaiXe', { maLoaiXe });
+
+    // Temporarily hidden to isolate possible UTC/date mismatch on the server.
+    // const today = new Date();
+    // query
+    //   .andWhere('(bg.hieu_luc_den IS NULL OR bg.hieu_luc_den >= :today)', {
+    //     today,
+    //   })
+    //   .andWhere('bg.hieu_luc_tu <= :today', { today });
 
     if (khuVuc) {
       query.andWhere('bg.khu_vuc = :khuVuc', { khuVuc });
     }
+
+    console.log('[estimatePrice] SQL:', query.getSql());
+    console.log('[estimatePrice] params:', query.getParameters());
 
     const bg = await query
       .orderBy('bg.ngay_ap_dung', 'DESC')
@@ -196,7 +205,7 @@ export class TripsService extends BaseService<ChuyenDi> {
         .setParameter('viDo', viDo)
         .setParameter('kinhDo', kinhDo)
         // Filter by distance
-        .having(
+        .andWhere(
           `6371 * acos(
             cos(radians(:viDo)) * 
             cos(radians(COALESCE(tx.vi_do_hien_tai, 0))) * 
