@@ -3,6 +3,7 @@
   Column,
   ManyToOne,
   JoinColumn,
+  RelationId,
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
@@ -29,6 +30,13 @@ export class BangGia {
   @ManyToOne(() => LoaiXe, (l) => l.bangGias)
   @JoinColumn({ name: 'ma_loai_xe' })
   loaiXe!: LoaiXe;
+
+  @ApiProperty({
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    description: 'Vehicle type UUID',
+  })
+  @RelationId((bangGia: BangGia) => bangGia.loaiXe)
+  maLoaiXe!: string;
 
   @ApiProperty({ example: 'Ho Chi Minh', description: 'Area/Region' })
   @Column({ name: 'khu_vuc', type: 'varchar', length: 255 })

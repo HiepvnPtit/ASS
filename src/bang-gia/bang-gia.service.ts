@@ -48,6 +48,13 @@ export class BangGiaService extends BaseService<BangGia> {
   }
 
   /**
+   * Override paginated listing to include loaiXe relation
+   */
+  async getPage(page: number = 1, limit: number = 10) {
+    return super.getPage(page, limit, { relations: ['loaiXe'] });
+  }
+
+  /**
    * Override findOne to include loaiXe relation
    * Accepts both UUID (maBangGia) and secondary identifier (ma)
    */

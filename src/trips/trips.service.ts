@@ -85,50 +85,57 @@ export class TripsService extends BaseService<ChuyenDi> {
   /**
    * Estimate price based on ma_loai_xe and quang_duong_km
    */
-  async estimatePrice(maLoaiXe: string, quangDuongKm: number, khuVuc?: string) {
-    console.log('[estimatePrice] maLoaiXe:', maLoaiXe);
-
-    // find active price for the vehicle type via the relation to LoaiXe
+  private buildPriceQuery(maLoaiXe: string, khuVuc?: string) {
     const query = this.bangGiaRepo
       .createQueryBuilder('bg')
-      .innerJoin('bg.loaiXe', 'loaiXe')
+      .innerJoinAndSelect('bg.loaiXe', 'loaiXe')
       .where('loaiXe.maLoaiXe = :maLoaiXe', { maLoaiXe });
-
-    // Temporarily hidden to isolate possible UTC/date mismatch on the server.
-    // const today = new Date();
-    // query
-    //   .andWhere('(bg.hieu_luc_den IS NULL OR bg.hieu_luc_den >= :today)', {
-    //     today,
-    //   })
-    //   .andWhere('bg.hieu_luc_tu <= :today', { today });
 
     if (khuVuc) {
       query.andWhere('bg.khu_vuc = :khuVuc', { khuVuc });
     }
 
-    console.log('[estimatePrice] SQL:', query.getSql());
-    console.log('[estimatePrice] params:', query.getParameters());
+    return query;
+  }
 
-    const bg = await query
-      .orderBy('bg.ngay_ap_dung', 'DESC')
-      .addOrderBy('bg.created_at', 'DESC')
-      .addOrderBy('bg.ma_bang_gia', 'DESC')
-      .getOne();
-
-    if (!bg) {
-      throw new BadRequestException('No pricing found for this vehicle type');
-    }
-
+  private toPriceEstimate(bg: BangGia, quangDuongKm: number) {
     const giaCoBan = parseFloat(bg.giaCoBan as any);
     const giaTheoKm = parseFloat(bg.giaTheoKm as any);
     const giaUocTinh = giaCoBan + giaTheoKm * (quangDuongKm ?? 0);
 
     return {
       maBangGia: bg.maBangGia,
+      maLoaiXe: bg.maLoaiXe ?? bg.loaiXe?.maLoaiXe,
+      khuVuc: bg.khuVuc,
+      khungGio: bg.khungGio,
+      ngayApDung: bg.ngayApDung,
       giaUocTinh: giaUocTinh.toFixed(2),
       giaCoBan: giaCoBan.toFixed(2),
       giaTheoKm: giaTheoKm.toFixed(2),
     };
+  }
+
+  async estimatePrices(
+    maLoaiXe: string,
+    quangDuongKm: number,
+    khuVuc?: string,
+  ) {
+    const bangGias = await this.buildPriceQuery(maLoaiXe, khuVuc)
+      .orderBy('bg.ngay_ap_dung', 'DESC')
+      .addOrderBy('bg.created_at', 'DESC')
+      .addOrderBy('bg.ma_bang_gia', 'DESC')
+      .getMany();
+
+    if (!bangGias.length) {
+      throw new BadRequestException('No pricing found for this vehicle type');
+    }
+
+    return bangGias.map((bg) => this.toPriceEstimate(bg, quangDuongKm));
+  }
+
+  async estimatePrice(maLoaiXe: string, quangDuongKm: number, khuVuc?: string) {
+    const estimates = await this.estimatePrices(maLoaiXe, quangDuongKm, khuVuc);
+    return estimates[0];
   }
 
   /**
