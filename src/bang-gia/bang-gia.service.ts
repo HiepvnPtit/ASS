@@ -130,22 +130,35 @@ export class BangGiaService extends BaseService<BangGia> {
       throw new BadRequestException('Giá cơ bản phải lớn hơn 0');
     }
 
-    const item = await this.findOne(maBangGia);
+    // Build preload data explicitly to avoid phantom-update
+    const updateData: any = { maBangGia };
 
-    if (dto.giaCoBan !== undefined) item.giaCoBan = dto.giaCoBan.toString();
-    if (dto.giaTheoKm !== undefined) item.giaTheoKm = dto.giaTheoKm.toString();
-    if (dto.hieuLucDen !== undefined) {
-      item.hieuLucDen = dto.hieuLucDen ? new Date(dto.hieuLucDen) : undefined;
-    }
+    if (dto.giaCoBan !== undefined)
+      updateData.giaCoBan = dto.giaCoBan.toString();
+    if (dto.giaTheoKm !== undefined)
+      updateData.giaTheoKm = dto.giaTheoKm.toString();
+    if (dto.khuVuc !== undefined) updateData.khuVuc = dto.khuVuc;
+    if (dto.khungGio !== undefined) updateData.khungGio = dto.khungGio;
+
     if (dto.maLoaiXe !== undefined) {
-      item.loaiXe = { maLoaiXe: dto.maLoaiXe } as any;
+      updateData.loaiXe = { maLoaiXe: dto.maLoaiXe } as any;
     }
-    if (dto.khuVuc !== undefined) item.khuVuc = dto.khuVuc;
-    if (dto.khungGio !== undefined) item.khungGio = dto.khungGio;
-    if (dto.ngayApDung !== undefined)
-      item.ngayApDung = new Date(dto.ngayApDung);
-    if (dto.hieuLucTu !== undefined) item.hieuLucTu = new Date(dto.hieuLucTu);
+    if (dto.ngayApDung !== undefined) {
+      updateData.ngayApDung = new Date(dto.ngayApDung);
+    }
+    if (dto.hieuLucTu !== undefined) {
+      updateData.hieuLucTu = new Date(dto.hieuLucTu);
+    }
+    if (dto.hieuLucDen !== undefined) {
+      updateData.hieuLucDen = dto.hieuLucDen
+        ? new Date(dto.hieuLucDen)
+        : undefined;
+    }
 
+    const item = await this.bangGiaRepo.preload(updateData);
+    if (!item) {
+      throw new NotFoundException('Bảng giá không tồn tại');
+    }
     return this.bangGiaRepo.save(item);
   }
 }

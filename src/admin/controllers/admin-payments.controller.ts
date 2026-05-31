@@ -1,4 +1,4 @@
-import { Controller, UseGuards } from '@nestjs/common';
+import { Controller, UseGuards, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { BaseControllerFactory } from '../../common/base';
@@ -21,14 +21,14 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - Support soft delete
  *
  * Admin can:
- * - Create payment records manually
+
  * - View all payments with pagination
  * - Update payment status (PENDING, COMPLETED, FAILED, REFUNDED, etc.)
  * - Soft delete payment records
  * - Monitor payment transactions
  *
  * Endpoints:
- * - POST /admin/payments - Create new payment record
+
  * - GET /admin/payments/page - Paginated list
  * - GET /admin/payments/all - All records
  * - GET /admin/payments/:id - Get payment by ID
@@ -49,6 +49,15 @@ export class AdminPaymentsController extends BaseControllerFactory(
    * Constructor automatically sets up all CRUD endpoints via BaseControllerFactory.
    * @param service The PaymentsService (extends BaseService<ThanhToan>)
    */
+  /**
+   * Create is disabled for Admin.
+   */
+  async create(dto: any): Promise<any> {
+    throw new BadRequestException(
+      'Admin khong duoc phep tao Thanh toan. Vui long su dung API khach hang.',
+    );
+  }
+
   constructor(private readonly service: PaymentsService) {
     super(service);
   }

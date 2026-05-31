@@ -37,6 +37,14 @@ export abstract class BaseService<T extends ObjectLiteral> {
   }
 
   /**
+   * Dynamically resolves the primary key property name from TypeORM metadata.
+   * Supports entities with custom PK names (maChuyenDi, maXe, maBangGia, ...).
+   */
+  protected get primaryKey(): string {
+    return this.repository.metadata.primaryColumns[0].propertyName;
+  }
+
+  /**
    * Create a new record
    * @param dto Data Transfer Object with entity data
    * @returns Created entity
@@ -101,14 +109,14 @@ export abstract class BaseService<T extends ObjectLiteral> {
    */
   async findOne(id: string | number, relations?: string[]): Promise<T> {
     const entity = await this.repository.findOne({
-      where: { id } as unknown as FindOptionsWhere<T>,
+      where: { [this.primaryKey]: id } as unknown as FindOptionsWhere<T>,
       relations,
       withDeleted: false,
     });
 
     if (!entity) {
       throw new NotFoundException(
-        `${this.entityName} with id "${id}" not found`,
+        `${this.entityName} with ${this.primaryKey} "${id}" not found`,
       );
     }
 
@@ -145,9 +153,8 @@ export abstract class BaseService<T extends ObjectLiteral> {
    * @returns Updated entity
    */
   async update(id: string | number, dto: DeepPartial<T>): Promise<T> {
-    const entity = await this.findOne(id);
-    Object.assign(entity, dto as any);
-    return this.repository.save(entity);
+    await this.repository.update(id, dto as any);
+    return this.findOne(id);
   }
 
   /**
@@ -177,7 +184,7 @@ export abstract class BaseService<T extends ObjectLiteral> {
    */
   async exists(id: string | number): Promise<boolean> {
     const count = await this.repository.count({
-      where: { id } as unknown as FindOptionsWhere<T>,
+      where: { [this.primaryKey]: id } as unknown as FindOptionsWhere<T>,
       withDeleted: false,
     });
     return count > 0;

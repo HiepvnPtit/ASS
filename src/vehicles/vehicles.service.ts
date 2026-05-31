@@ -77,7 +77,7 @@ export class VehiclesService extends BaseService<Xe> {
       loaiXe,
     });
 
-    return this.xeRepo.save(vehicle);
+    return await this.xeRepo.save(vehicle);
   }
 
   /**
@@ -136,9 +136,18 @@ export class VehiclesService extends BaseService<Xe> {
     userId: string,
     dto: UpdateVehicleDto,
   ): Promise<Xe> {
-    const vehicle = await this.findOneByCustomer(maXe, userId);
+    // Verify ownership (throws if not found or does not belong to customer)
+    await this.findOneByCustomer(maXe, userId);
 
-    // If updating loai xe, verify it exists
+    // Build update data using preload to avoid phantom-update
+    const updateData: any = { maXe };
+    if (dto.bienSo !== undefined) updateData.bienSo = dto.bienSo;
+    if (dto.hangXe !== undefined) updateData.hangXe = dto.hangXe;
+    if (dto.dongXe !== undefined) updateData.dongXe = dto.dongXe;
+    if (dto.mauXe !== undefined) updateData.mauXe = dto.mauXe;
+    if (dto.cauTrucSangSo !== undefined)
+      updateData.cauTrucSangSo = dto.cauTrucSangSo;
+
     if (dto.maLoaiXe) {
       const loaiXe = await this.loaiXeRepo.findOne({
         where: { maLoaiXe: dto.maLoaiXe } as any,
@@ -146,17 +155,13 @@ export class VehiclesService extends BaseService<Xe> {
       if (!loaiXe) {
         throw new BadRequestException('Loại xe không tồn tại');
       }
-      vehicle.loaiXe = loaiXe;
+      updateData.loaiXe = loaiXe;
     }
 
-    // Update other fields
-    if (dto.bienSo) vehicle.bienSo = dto.bienSo;
-    if (dto.hangXe) vehicle.hangXe = dto.hangXe;
-    if (dto.dongXe) vehicle.dongXe = dto.dongXe;
-    if (dto.mauXe !== undefined) vehicle.mauXe = dto.mauXe;
-    if (dto.cauTrucSangSo !== undefined)
-      vehicle.cauTrucSangSo = dto.cauTrucSangSo;
-
+    const vehicle = await this.xeRepo.preload(updateData);
+    if (!vehicle) {
+      throw new NotFoundException('Xe không tồn tại');
+    }
     return this.xeRepo.save(vehicle);
   }
 

@@ -3,7 +3,6 @@
   Column,
   ManyToOne,
   JoinColumn,
-  RelationId,
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
@@ -35,7 +34,8 @@ export class BangGia {
     example: '550e8400-e29b-41d4-a716-446655440000',
     description: 'Vehicle type UUID',
   })
-  @RelationId((bangGia: BangGia) => bangGia.loaiXe)
+  // Dual mapping: scalar column so repo.update() can find maLoaiXe from DTO
+  @Column({ name: 'ma_loai_xe', nullable: true })
   maLoaiXe!: string;
 
   @ApiProperty({ example: 'Ho Chi Minh', description: 'Area/Region' })

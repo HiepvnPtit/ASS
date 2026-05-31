@@ -1,4 +1,4 @@
-import { Controller, UseGuards } from '@nestjs/common';
+import { Controller, UseGuards, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { BaseControllerFactory } from '../../common/base';
@@ -21,7 +21,7 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - Support soft delete
  *
  * Admin can:
- * - Create or edit review records
+
  * - View all reviews with pagination
  * - Update review content and ratings
  * - Soft delete reviews
@@ -29,7 +29,7 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - Remove inappropriate reviews
  *
  * Endpoints:
- * - POST /admin/reviews - Create new review
+
  * - GET /admin/reviews/page - Paginated list
  * - GET /admin/reviews/all - All records
  * - GET /admin/reviews/:id - Get review by ID
@@ -50,6 +50,15 @@ export class AdminReviewsController extends BaseControllerFactory(
    * Constructor automatically sets up all CRUD endpoints via BaseControllerFactory.
    * @param service The ReviewsService (extends BaseService<DanhGia>)
    */
+  /**
+   * Create is disabled for Admin.
+   */
+  async create(dto: any): Promise<any> {
+    throw new BadRequestException(
+      'Admin khong duoc phep tao Danh gia. Vui long su dung API khach hang.',
+    );
+  }
+
   constructor(private readonly service: ReviewsService) {
     super(service);
   }

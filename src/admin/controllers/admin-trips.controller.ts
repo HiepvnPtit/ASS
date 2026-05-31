@@ -1,4 +1,4 @@
-import { Controller, UseGuards } from '@nestjs/common';
+import { Controller, UseGuards, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { BaseControllerFactory } from '../../common/base';
@@ -21,14 +21,14 @@ import { Roles } from '../../auth/decorators/roles.decorator';
  * - Support soft delete
  *
  * Admin can:
- * - Create new trips
+
  * - View all trips with pagination
  * - Update any trip details
  * - Soft delete trips
  * - View trip status history
  *
  * Endpoints:
- * - POST /admin/trips - Create new trip
+
  * - GET /admin/trips/page - Paginated list
  * - GET /admin/trips/all - All records
  * - GET /admin/trips/:id - Get trip by ID
@@ -50,6 +50,15 @@ export class AdminTripsController extends BaseControllerFactory(
    * Constructor automatically sets up all CRUD endpoints via BaseControllerFactory.
    * @param service The TripsService (extends BaseService<ChuyenDi>)
    */
+  /**
+   * Create is disabled for Admin.
+   */
+  async create(dto: any): Promise<any> {
+    throw new BadRequestException(
+      'Admin khong duoc phep tao Chuyen di. Vui long su dung API khach hang.',
+    );
+  }
+
   constructor(private readonly service: TripsService) {
     super(service);
   }

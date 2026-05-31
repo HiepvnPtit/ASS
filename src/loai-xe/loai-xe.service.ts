@@ -76,9 +76,8 @@ export class LoaiXeService extends BaseService<LoaiXe> {
       throw new BadRequestException('Số chỗ phải lớn hơn 0');
     }
 
-    const item = await this.findOne(maLoaiXe);
-    Object.assign(item, dto);
-    return this.loaiXeRepo.save(item);
+    await this.loaiXeRepo.update(maLoaiXe, dto as any);
+    return this.findOne(maLoaiXe);
   }
 
   /**
