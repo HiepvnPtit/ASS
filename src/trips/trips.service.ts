@@ -477,8 +477,8 @@ export class TripsService extends BaseService<ChuyenDi> {
 
       await manager.save(BienBanBanGiaoXe, bienBan);
 
-      // update trip status to DRIVING
-      trip.trangThai = 'DRIVING';
+      // Sync with the unified flow: REQUESTED -> ACCEPTED -> ARRIVED -> STARTED -> COMPLETED
+      trip.trangThai = 'STARTED';
       await manager.save(ChuyenDi, trip);
 
       // insert images into anh_chung_thuc (bulk)
@@ -500,7 +500,7 @@ export class TripsService extends BaseService<ChuyenDi> {
       const ls = manager.create(LichSuTrangThai, {
         chuyenDi: trip,
         trangThaiCu: undefined,
-        trangThaiMoi: 'DRIVING',
+        trangThaiMoi: 'STARTED',
         nguoiCapNhat: payload.maKhachHangXacNhan || 'SYSTEM',
       } as any);
 
@@ -735,7 +735,7 @@ export class TripsService extends BaseService<ChuyenDi> {
 
       // Kiá»ƒm tra status transition há»£p lá»‡
       const validTransitions: { [key: string]: string[] } = {
-        PENDING: ['ACCEPTED'],
+        REQUESTED: ['ACCEPTED'],
         ACCEPTED: ['ARRIVED'],
         ARRIVED: ['STARTED'],
         STARTED: ['COMPLETED'],
