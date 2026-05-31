@@ -1,4 +1,4 @@
-import { Controller, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { BaseControllerFactory } from '../../common/base';
@@ -52,12 +52,6 @@ export class AdminPaymentsController extends BaseControllerFactory(
   /**
    * Create is disabled for Admin.
    */
-  async create(dto: any): Promise<any> {
-    throw new BadRequestException(
-      'Admin khong duoc phep tao Thanh toan. Vui long su dung API khach hang.',
-    );
-  }
-
   constructor(private readonly service: PaymentsService) {
     super(service);
   }
