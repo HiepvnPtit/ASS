@@ -541,6 +541,8 @@ export class TripsService extends BaseService<ChuyenDi> {
         );
       }
 
+      const previousStatus = trip.trangThai;
+
       // Update trip status to CANCELLED
       trip.trangThai = 'CANCELLED';
       trip.ghiChu = lyDoHuy || trip.ghiChu;
@@ -548,9 +550,8 @@ export class TripsService extends BaseService<ChuyenDi> {
 
       // Log status change
       const ls = manager.create(LichSuTrangThai, {
-        maLichSu: `ls_${Date.now()}`,
         chuyenDi: trip,
-        trangThaiCu: 'PENDING',
+        trangThaiCu: previousStatus,
         trangThaiMoi: 'CANCELLED',
         nguoiCapNhat: maKhachHang,
       });
