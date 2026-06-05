@@ -106,4 +106,34 @@ export class LoaiXeService extends BaseService<LoaiXe> {
     });
     return count > 0;
   }
+
+  /**
+   * Get unique hopSo values from all vehicle types
+   * Used for dropdown options on Frontend
+   */
+  async getUniqueHopSo(): Promise<string[]> {
+    const results = await this.loaiXeRepo
+      .createQueryBuilder('loaiXe')
+      .select('DISTINCT loaiXe.hopSo', 'hopSo')
+      .where('loaiXe.hopSo IS NOT NULL')
+      .andWhere('loaiXe.deletedAt IS NULL')
+      .orderBy('loaiXe.hopSo', 'ASC')
+      .getRawMany();
+    return results.map(item => item.hopSo);
+  }
+
+  /**
+   * Get unique phanKhuc values from all vehicle types
+   * Used for dropdown options on Frontend
+   */
+  async getUniquePhanKhuc(): Promise<string[]> {
+    const results = await this.loaiXeRepo
+      .createQueryBuilder('loaiXe')
+      .select('DISTINCT loaiXe.phanKhuc', 'phanKhuc')
+      .where('loaiXe.phanKhuc IS NOT NULL')
+      .andWhere('loaiXe.deletedAt IS NULL')
+      .orderBy('loaiXe.phanKhuc', 'ASC')
+      .getRawMany();
+    return results.map(item => item.phanKhuc);
+  }
 }

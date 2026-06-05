@@ -1,5 +1,5 @@
-import { Controller } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Controller, Get } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { BaseControllerFactory } from '../common/base';
 import { LoaiXeService } from './loai-xe.service';
 import { LoaiXe } from '../entities/loai-xe.entity';
@@ -33,5 +33,23 @@ export class LoaiXeController extends BaseControllerFactory(
    */
   constructor(private readonly service: LoaiXeService) {
     super(service);
+  }
+
+  /**
+   * Get unique hopSo values for dropdown options
+   */
+  @Get('hopSoAll')
+  @ApiOperation({ summary: 'Lấy danh sách các giá trị duy nhất của Hộp số' })
+  async getUniqueHopSo(): Promise<string[]> {
+    return this.service.getUniqueHopSo();
+  }
+
+  /**
+   * Get unique phanKhuc values for dropdown options
+   */
+  @Get('phanKhucAll')
+  @ApiOperation({ summary: 'Lấy danh sách các giá trị duy nhất của Phân khúc' })
+  async getUniquePhanKhuc(): Promise<string[]> {
+    return this.service.getUniquePhanKhuc();
   }
 }
