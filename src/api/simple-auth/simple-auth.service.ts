@@ -7,12 +7,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository, Not } from 'typeorm';
 import bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { randomBytes } from 'crypto';
 import { NguoiDung } from '../../entities/nguoi-dung.entity';
 import { KhachHang } from '../../entities/khach-hang.entity';
 import { TaiXe } from '../../entities/tai-xe.entity';
+import { MailService } from '../../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class SimpleAuthService {
@@ -24,6 +29,8 @@ export class SimpleAuthService {
     @InjectRepository(TaiXe)
     private readonly driversRepo: Repository<TaiXe>,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+    private readonly mailService: MailService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -221,6 +228,93 @@ export class SimpleAuthService {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       ngayTao: user.ngayTao,
+    };
+  }
+
+  /**
+   * Request password reset - POST /auth/forgot-password
+   * @param dto - ForgotPasswordDto containing email
+   * @returns Message confirming email sent
+   */
+  async requestForgotPassword(dto: ForgotPasswordDto) {
+    // 1. Check if user exists with this email
+    const user = await this.usersRepo.findOne({
+      where: { email: dto.email },
+    });
+    if (!user) {
+      throw new BadRequestException(
+        'Email không tồn tại trong hệ thống hoặc tài khoản chưa đăng ký.',
+      );
+    }
+
+    // 2. Generate 6-digit OTP (random number from 100000 to 999999)
+    const otp = String(Math.floor(Math.random() * 900000) + 100000);
+
+    // 3. Calculate token expiration time (10 minutes from now)
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    // 4. Update user with OTP and expiration time using repo.update()
+    await this.usersRepo.update(
+      { maNguoiDung: user.maNguoiDung },
+      {
+        matKhauResetToken: otp,
+        matKhauResetTokenExpires: expiresAt,
+      },
+    );
+
+    // 5. Send email with OTP
+    await this.mailService.forgotPassword({
+      to: user.email!,
+      data: {
+        otp: otp,
+      },
+    });
+
+    return {
+      message: 'Email hướng dẫn đặt lại mật khẩu đã được gửi.',
+      email: user.email,
+    };
+  }
+
+  /**
+   * Reset password - POST /auth/reset-password
+   * @param dto - ResetPasswordDto containing OTP and new password
+   * @returns Message confirming password reset
+   */
+  async resetPassword(dto: ResetPasswordDto) {
+    // 1. Find user with matching OTP that hasn't expired
+    const user = await this.usersRepo.findOne({
+      where: {
+        matKhauResetToken: dto.otp,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Mã OTP không hợp lệ.');
+    }
+
+    // 2. Check if OTP has expired
+    if (
+      !user.matKhauResetTokenExpires ||
+      user.matKhauResetTokenExpires < new Date()
+    ) {
+      throw new BadRequestException(
+        'Mã OTP đã hết hạn. Vui lòng yêu cầu cấp mã mới.',
+      );
+    }
+
+    // 3. Hash new password using bcrypt
+    const hashedPassword = await bcrypt.hash(dto.matKhau, 10);
+
+    // 4. Update password and clear reset OTP using repo.update()
+    await this.usersRepo.update({ maNguoiDung: user.maNguoiDung }, {
+      matKhau: hashedPassword,
+      matKhauResetToken: undefined,
+      matKhauResetTokenExpires: undefined,
+    } as any);
+
+    return {
+      message: 'Mật khẩu đã được cập nhật thành công.',
     };
   }
 }

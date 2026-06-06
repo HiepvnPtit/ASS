@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Put,
   Request,
   UseGuards,
   UsePipes,
@@ -22,11 +23,45 @@ import {
 import { UsersService } from './users.service';
 import { DeviceToken } from '../../entities/device-token.entity';
 import { CreateDeviceTokenDto } from './dto/create-device-token.dto';
+import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  /**
+   * Update user profile (PUT /api/users/me)
+   * User CAN change: hoTen, soDienThoai, email, matKhau, avatar
+   * User CANNOT change: maNguoiDung, ma, vaiTro, trangThai
+   */
+  @Put('me')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('JWT')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Update user profile information',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile updated successfully (password not returned)',
+  })
+  @ApiResponse({ status: 400, description: 'Validation failed or conflict' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  )
+  async updateProfile(
+    @Request() request: any,
+    @Body() dto: UpdateUserProfileDto,
+  ): Promise<any> {
+    const maNguoiDung = request.user.maNguoiDung || request.user.id;
+    return this.usersService.updateProfile(maNguoiDung, dto);
+  }
 
   /**
    * Lưu FCM token của thiết bị người dùng

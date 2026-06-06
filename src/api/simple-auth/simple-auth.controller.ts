@@ -16,6 +16,8 @@ import { SimpleAuthService } from './simple-auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -99,5 +101,45 @@ export class SimpleAuthController {
   ) {
     const maNguoiDung = request.user.maNguoiDung || request.user.id;
     return await this.service.updateProfile(maNguoiDung, updateProfileDto);
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({
+    summary: 'Request password reset - sends email with reset link',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Password reset email sent successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Email not found in system',
+  })
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  )
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.service.requestForgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Reset password with OTP code from email' })
+  @ApiResponse({ status: 200, description: 'Password reset successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired OTP' })
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  )
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.service.resetPassword(dto);
   }
 }

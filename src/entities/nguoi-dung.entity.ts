@@ -101,6 +101,21 @@ export class NguoiDung {
   })
   avatar?: string;
 
+  @Column({
+    name: 'mat_khau_reset_token',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  matKhauResetToken?: string;
+
+  @Column({
+    name: 'mat_khau_reset_token_expires',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  matKhauResetTokenExpires?: Date;
+
   @ApiProperty({
     description: 'Record creation timestamp',
     example: '2026-05-24T10:30:00Z',

@@ -1,53 +1,65 @@
 import { Injectable } from '@nestjs/common';
 import fs from 'node:fs/promises';
 import { ConfigService } from '@nestjs/config';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import Handlebars from 'handlebars';
 import { AllConfigType } from '../config/config.type';
 
 @Injectable()
 export class MailerService {
-  private readonly transporter: nodemailer.Transporter;
+  private readonly resend: Resend;
+
   constructor(private readonly configService: ConfigService<AllConfigType>) {
-    this.transporter = nodemailer.createTransport({
-      host: configService.get('mail.host', { infer: true }),
-      port: configService.get('mail.port', { infer: true }),
-      ignoreTLS: configService.get('mail.ignoreTLS', { infer: true }),
-      secure: configService.get('mail.secure', { infer: true }),
-      requireTLS: configService.get('mail.requireTLS', { infer: true }),
-      auth: {
-        user: configService.get('mail.user', { infer: true }),
-        pass: configService.get('mail.password', { infer: true }),
-      },
-    });
+    this.resend = new Resend(
+      configService.getOrThrow('mail.resendApiKey', { infer: true }),
+    );
   }
 
   async sendMail({
     templatePath,
     context,
-    ...mailOptions
-  }: nodemailer.SendMailOptions & {
-    templatePath: string;
-    context: Record<string, unknown>;
+    to,
+    subject,
+    from,
+    html,
+  }: {
+    to: string;
+    subject?: string;
+    from?: string;
+    html?: string;
+    templatePath?: string;
+    context?: Record<string, unknown>;
   }): Promise<void> {
-    let html: string | undefined;
-    if (templatePath) {
+    let finalHtml: string | undefined = html;
+
+    if (templatePath && context) {
       const template = await fs.readFile(templatePath, 'utf-8');
-      html = Handlebars.compile(template, {
+      finalHtml = Handlebars.compile(template, {
         strict: true,
       })(context);
     }
 
-    await this.transporter.sendMail({
-      ...mailOptions,
-      from: mailOptions.from
-        ? mailOptions.from
-        : `"${this.configService.get('mail.defaultName', {
-            infer: true,
-          })}" <${this.configService.get('mail.defaultEmail', {
-            infer: true,
-          })}>`,
-      html: mailOptions.html ? mailOptions.html : html,
+    const fromAddress =
+      from ||
+      `${this.configService.get('mail.defaultName', {
+        infer: true,
+      })} <${this.configService.get('mail.defaultEmail', {
+        infer: true,
+      })}>`;
+
+    if (!finalHtml) {
+      throw new Error('Email template must have HTML content');
+    }
+
+    if (!subject) {
+      throw new Error('Email subject is required');
+    }
+
+    await this.resend.emails.send({
+      to,
+      subject,
+      from: fromAddress,
+      html: finalHtml,
     });
   }
 }

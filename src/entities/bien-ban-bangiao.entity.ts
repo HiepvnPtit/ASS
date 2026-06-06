@@ -4,11 +4,13 @@ import {
   Column,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   CreateDateColumn,
 } from 'typeorm';
 import { ChuyenDi } from './chuyen-di.entity';
 import { KhachHang } from './khach-hang.entity';
 import { TaiXe } from './tai-xe.entity';
+import { AnhChungThuc } from './anh-chung-thuc.entity';
 
 @Entity({ name: 'bien_ban_ban_giao_xe' })
 export class BienBanBanGiaoXe {
@@ -62,4 +64,7 @@ export class BienBanBanGiaoXe {
   @ManyToOne(() => TaiXe, (tx) => tx.bienBansConfirmed)
   @JoinColumn({ name: 'ma_tai_xe_xac_nhan' })
   taiXeXacNhan!: TaiXe;
+
+  @OneToMany(() => AnhChungThuc, (anh) => anh.bienBan, { cascade: true })
+  anhChungThucs?: AnhChungThuc[];
 }

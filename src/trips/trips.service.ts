@@ -511,6 +511,120 @@ export class TripsService extends BaseService<ChuyenDi> {
   }
 
   /**
+   * Create handover with file uploads (multipart/form-data)
+   * Handles file storage and creates AnhChungThuc records with file paths
+   */
+  async createHandoverWithFiles(
+    payload: {
+      maChuyenDi: string;
+      tinhTrangTruoc?: string;
+      tinhTrangSau?: string;
+      mucNhienLieuTruoc?: number;
+      mucNhienLieuSau?: number;
+      soKmTruoc?: number;
+      soKmSau?: number;
+      maKhachHangXacNhan: string;
+      maTaiXeXacNhan: string;
+      ghiChu?: string;
+    },
+    files: Express.Multer.File[],
+    currentUser: {
+      id: string;
+      vaiTro?: string;
+      role?: { id?: string | number; name?: string };
+    },
+  ) {
+    const ds = await getDataSource();
+    return ds.transaction(async (manager) => {
+      if (this.normalizeRole(currentUser) !== 'DRIVER') {
+        throw new ForbiddenException('Only DRIVER can submit handover');
+      }
+
+      // Load trip
+      const trip = await manager.findOne(ChuyenDi, {
+        where: { maChuyenDi: payload.maChuyenDi },
+        relations: { khachHang: true, taiXe: true } as any,
+      });
+      if (!trip) throw new BadRequestException('Trip not found');
+
+      const currentDriver = await this.taiXeRepo.findOne({
+        where: { nguoiDung: { maNguoiDung: currentUser.id } as any },
+      });
+
+      if (!currentDriver) {
+        throw new BadRequestException('Driver profile not found');
+      }
+
+      if (trip.khachHang?.maKhachHang !== payload.maKhachHangXacNhan) {
+        throw new BadRequestException('Trip customer confirmation is invalid');
+      }
+
+      if (trip.taiXe?.maTaiXe !== currentDriver.maTaiXe) {
+        throw new ForbiddenException(
+          'You can only submit handover for trips assigned to you',
+        );
+      }
+
+      if (payload.maTaiXeXacNhan !== currentDriver.maTaiXe) {
+        throw new BadRequestException('Trip driver confirmation is invalid');
+      }
+
+      // Create handover record
+      const bienBan = manager.create(BienBanBanGiaoXe, {
+        chuyenDi: trip,
+        tinhTrangTruoc: payload.tinhTrangTruoc,
+        tinhTrangSau: payload.tinhTrangSau,
+        mucNhienLieuTruoc: payload.mucNhienLieuTruoc,
+        mucNhienLieuSau: payload.mucNhienLieuSau,
+        soKmTruoc: payload.soKmTruoc,
+        soKmSau: payload.soKmSau,
+        ghiChu: payload.ghiChu,
+        khachHangXacNhan: { maKhachHang: payload.maKhachHangXacNhan } as any,
+        taiXeXacNhan: { maTaiXe: payload.maTaiXeXacNhan } as any,
+      } as any);
+
+      await manager.save(BienBanBanGiaoXe, bienBan);
+
+      // Update trip status
+      trip.trangThai = 'STARTED';
+      await manager.save(ChuyenDi, trip);
+
+      // Process uploaded files
+      const anhEntities = files.map((file) =>
+        manager.create(AnhChungThuc, {
+          chuyenDi: trip,
+          maChuyenDi: trip.maChuyenDi,
+          bienBan: bienBan,
+          maBienBan: bienBan.maBienBan,
+          duongDan: file.path.replace(/\\/g, '/'),
+          loaiAnh: 'AFTER_TRIP',
+        } as any),
+      );
+
+      if (anhEntities.length) {
+        await manager.save(AnhChungThuc, anhEntities);
+      }
+
+      // Log status change
+      const ls = manager.create(LichSuTrangThai, {
+        chuyenDi: trip,
+        trangThaiCu: undefined,
+        trangThaiMoi: 'STARTED',
+        nguoiCapNhat: payload.maKhachHangXacNhan || 'SYSTEM',
+      } as any);
+
+      await manager.save(LichSuTrangThai, ls);
+
+      return {
+        bienBan,
+        imagesUploaded: anhEntities.length,
+        imagePaths: anhEntities.map((a) => a.duongDan),
+        trip,
+      };
+    });
+  }
+
+  /**
    * Cancel a trip (only if status is PENDING)
    */
   async cancelTrip(maChuyenDi: string, maKhachHang: string, lyDoHuy?: string) {

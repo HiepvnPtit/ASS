@@ -20,9 +20,17 @@ export class AnhChungThuc {
   @JoinColumn({ name: 'ma_chuyen_di' })
   chuyenDi!: ChuyenDi;
 
-  @ManyToOne(() => BienBanBanGiaoXe, { onDelete: 'CASCADE' })
+  @Column({ name: 'ma_chuyen_di', type: 'uuid' })
+  maChuyenDi!: string;
+
+  @ManyToOne(() => BienBanBanGiaoXe, (bb) => bb.anhChungThucs, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'ma_bien_ban' })
   bienBan!: BienBanBanGiaoXe;
+
+  @Column({ name: 'ma_bien_ban', type: 'uuid', nullable: true })
+  maBienBan?: string;
 
   @Column({ name: 'duong_dan', type: 'text' })
   duongDan!: string;

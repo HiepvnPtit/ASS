@@ -12,8 +12,14 @@ import {
   Param,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import * as path from 'path';
+import * as fs from 'fs';
 import { TripsService } from './trips.service';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { HandoverDto } from './dto/handover.dto';
@@ -79,6 +85,73 @@ export class TripsController {
   )
   async handover(@Request() request, @Body() dto: HandoverDto) {
     return this.service.vehicleHandover(dto as any, request.user);
+  }
+
+  @Post('handover/with-files')
+  @ApiOperation({
+    summary: 'Submit vehicle handover with file uploads (multipart/form-data)',
+    description:
+      'Driver submits handover with up to 10 photos. Supports multipart/form-data request.',
+  })
+  @ApiResponse({ status: 201, description: 'Handover with files recorded' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid handover data or file upload failed',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Only DRIVER role can submit handover',
+  })
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(AuthGuard('jwt'))
+  @UseInterceptors(
+    FilesInterceptor('images', 10, {
+      storage: diskStorage({
+        destination: (req, file, cb) => {
+          const uploadDir = path.join(process.cwd(), 'uploads', 'handover');
+          if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+          }
+          cb(null, uploadDir);
+        },
+        filename: (req, file, cb) => {
+          const timestamp = Date.now();
+          const ext = path.extname(file.originalname);
+          const name = path.basename(file.originalname, ext);
+          cb(null, `${name}-${timestamp}${ext}`);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+        const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (allowedMimes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(
+            new Error(`Invalid file type. Allowed: ${allowedMimes.join(', ')}`),
+            false,
+          );
+        }
+      },
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  )
+  async handoverWithFiles(
+    @Request() request,
+    @Body() dto: HandoverDto,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    return await this.service.createHandoverWithFiles(
+      dto as any,
+      files || [],
+      request.user,
+    );
   }
 
   @Get('estimate')

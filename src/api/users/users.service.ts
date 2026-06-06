@@ -1,9 +1,11 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not } from 'typeorm';
+import bcrypt from 'bcryptjs';
 import { DeviceToken } from '../../entities/device-token.entity';
 import { NguoiDung } from '../../entities/nguoi-dung.entity';
 import { CreateDeviceTokenDto } from './dto/create-device-token.dto';
+import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 
 @Injectable()
 export class UsersService {
@@ -110,5 +112,91 @@ export class UsersService {
       { id: tokenId },
       { lastUsedAt: new Date() },
     );
+  }
+
+  /**
+   * Update user profile (PUT /api/users/me)
+   * User CAN change: hoTen, soDienThoai, email, matKhau, avatar
+   * User CANNOT change: maNguoiDung, ma, vaiTro, trangThai (system fields)
+   */
+  async updateProfile(
+    maNguoiDung: string,
+    dto: UpdateUserProfileDto,
+  ): Promise<any> {
+    // 1. Find user
+    const user = await this.usersRepo.findOne({
+      where: { maNguoiDung },
+    });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    // 2. Check for duplicate email/phone (exclude current user)
+    if (dto.email && dto.email !== user.email) {
+      const existingEmail = await this.usersRepo.findOne({
+        where: {
+          email: dto.email,
+          maNguoiDung: Not(maNguoiDung),
+        },
+      });
+      if (existingEmail) {
+        throw new BadRequestException(
+          'Email này đã được sử dụng bởi tài khoản khác.',
+        );
+      }
+    }
+
+    if (dto.soDienThoai && dto.soDienThoai !== user.soDienThoai) {
+      const existingPhone = await this.usersRepo.findOne({
+        where: {
+          soDienThoai: dto.soDienThoai,
+          maNguoiDung: Not(maNguoiDung),
+        },
+      });
+      if (existingPhone) {
+        throw new BadRequestException(
+          'Số điện thoại này đã được sử dụng bởi tài khoản khác.',
+        );
+      }
+    }
+
+    // 3. Prepare update data
+    const updateData: any = {};
+
+    if (dto.hoTen) updateData.hoTen = dto.hoTen;
+    if (dto.soDienThoai) updateData.soDienThoai = dto.soDienThoai;
+    if (dto.email) updateData.email = dto.email;
+    if (dto.avatar) updateData.avatar = dto.avatar;
+
+    // 4. Hash password if provided
+    if (dto.matKhau) {
+      updateData.matKhau = await bcrypt.hash(dto.matKhau, 10);
+    }
+
+    // 5. Update user using repo.update() to avoid Phantom Update
+    await this.usersRepo.update({ maNguoiDung }, updateData);
+
+    // 6. Fetch updated user
+    const updatedUser = await this.usersRepo.findOne({
+      where: { maNguoiDung },
+    });
+
+    if (!updatedUser) {
+      throw new BadRequestException('Failed to update user');
+    }
+
+    // 7. Return user without password
+    return {
+      maNguoiDung: updatedUser.maNguoiDung,
+      hoTen: updatedUser.hoTen,
+      soDienThoai: updatedUser.soDienThoai,
+      email: updatedUser.email ?? null,
+      vaiTro: updatedUser.vaiTro,
+      trangThai: updatedUser.trangThai,
+      avatar: updatedUser.avatar ?? null,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
+      ngayTao: updatedUser.ngayTao,
+    };
   }
 }

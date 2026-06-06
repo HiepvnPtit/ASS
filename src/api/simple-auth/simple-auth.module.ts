@@ -5,6 +5,7 @@ import { PassportModule } from '@nestjs/passport';
 import { SimpleAuthController } from './simple-auth.controller';
 import { SimpleAuthService } from './simple-auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { MailModule } from '../../mail/mail.module';
 import { NguoiDung } from '../../entities/nguoi-dung.entity';
 import { KhachHang } from '../../entities/khach-hang.entity';
 import { TaiXe } from '../../entities/tai-xe.entity';
@@ -24,6 +25,7 @@ if (!jwtSecret) {
       secret: jwtSecret,
       signOptions: { expiresIn: '1h' },
     }),
+    MailModule,
   ],
   controllers: [SimpleAuthController],
   providers: [SimpleAuthService, JwtStrategy],
