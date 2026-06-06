@@ -1,8 +1,9 @@
-import { Logger } from '@nestjs/common';
+﻿import { Logger } from '@nestjs/common';
 import 'dotenv/config';
 import 'reflect-metadata';
 import AppDataSource from '../../../database/data-source';
 import { createAdminUserSeed } from './create-admin-user.seed';
+import { createTestDataSeed } from './create-test-data.seed';
 
 const logger = new Logger('DatabaseSeed');
 
@@ -19,6 +20,7 @@ async function runSeeds() {
 
     // Chạy seeds
     await createAdminUserSeed(AppDataSource);
+    await createTestDataSeed(AppDataSource);
 
     logger.log('✅ Tất cả seeds đã hoàn tất thành công!');
   } catch (error) {

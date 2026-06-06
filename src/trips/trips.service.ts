@@ -26,14 +26,14 @@ import { ReviewsService } from '../reviews/reviews.service';
 import { TripsGateway } from './trips.gateway';
 
 /**
- * Trips Service - Trip/Journey Management
+ * Trips Service - Quản lý chuyến đi
  *
- * Extends BaseService for standard CRUD operations.
- * Custom logic:
- * - Trip creation with transaction support
- * - Available drivers lookup
- * - Price estimation based on vehicle type and distance
- * - Trip status management and history tracking
+ * Kế thừa BaseService để thực hiện các thao tác CRUD cơ bản.
+ * Logic tùy chỉnh:
+ * - Tạo chuyến đi với hỗ trợ transaction
+ * - Tìm kiếm tài xế khả dụng
+ * - Ước tính giá dựa trên loại xe và quãng đường
+ * - Quản lý trạng thái chuyến đi và lịch sử theo dõi
  */
 @Injectable()
 export class TripsService extends BaseService<ChuyenDi> {

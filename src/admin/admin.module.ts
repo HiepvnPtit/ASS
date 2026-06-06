@@ -7,6 +7,7 @@ import { VehiclesModule } from '../vehicles/vehicles.module';
 import { TripsModule } from '../trips/trips.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { ReviewsModule } from '../reviews/reviews.module';
+import { KhieuNaiModule } from '../khieu-nai/khieu-nai.module';
 
 import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
@@ -20,6 +21,7 @@ import { AdminBangGiaController } from './controllers/admin-bang-gia.controller'
 import { AdminTripsController } from './controllers/admin-trips.controller';
 import { AdminPaymentsController } from './controllers/admin-payments.controller';
 import { AdminReviewsController } from './controllers/admin-reviews.controller';
+import { AdminKhieuNaiController } from './controllers/admin-khieu-nai.controller';
 
 import { NguoiDung } from '../entities/nguoi-dung.entity';
 import { TaiXe } from '../entities/tai-xe.entity';
@@ -68,6 +70,7 @@ import { DanhGia } from '../entities/danh-gia.entity';
     TripsModule,
     PaymentsModule,
     ReviewsModule,
+    KhieuNaiModule,
   ],
   controllers: [
     AdminController,
@@ -83,6 +86,7 @@ import { DanhGia } from '../entities/danh-gia.entity';
     AdminTripsController,
     AdminPaymentsController,
     AdminReviewsController,
+    AdminKhieuNaiController,
   ],
   providers: [AdminService],
   exports: [AdminService],

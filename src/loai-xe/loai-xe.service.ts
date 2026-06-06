@@ -119,7 +119,7 @@ export class LoaiXeService extends BaseService<LoaiXe> {
       .andWhere('loaiXe.deletedAt IS NULL')
       .orderBy('loaiXe.hopSo', 'ASC')
       .getRawMany();
-    return results.map(item => item.hopSo);
+    return results.map((item) => item.hopSo);
   }
 
   /**
@@ -134,6 +134,6 @@ export class LoaiXeService extends BaseService<LoaiXe> {
       .andWhere('loaiXe.deletedAt IS NULL')
       .orderBy('loaiXe.phanKhuc', 'ASC')
       .getRawMany();
-    return results.map(item => item.phanKhuc);
+    return results.map((item) => item.phanKhuc);
   }
 }

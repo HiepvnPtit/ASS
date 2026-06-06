@@ -23,6 +23,7 @@ import { AdminModule } from './admin/admin.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './api/users/users.module';
 import { ConfigsModule } from './configs/configs.module';
+import { KhieuNaiModule } from './khieu-nai/khieu-nai.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { MongooseConfigService } from './database/mongoose-config.service';
 import { DatabaseConfig } from './database/config/database-config.type';
@@ -88,6 +89,7 @@ const infrastructureDatabaseModule = (databaseConfig() as DatabaseConfig)
     AdminModule,
     UploadsModule,
     ConfigsModule,
+    KhieuNaiModule,
   ],
 })
 export class AppModule {}

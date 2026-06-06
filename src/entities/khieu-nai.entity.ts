@@ -14,9 +14,22 @@ export class KhieuNai {
   @PrimaryGeneratedColumn('uuid', { name: 'ma_khieu_nai' })
   maKhieuNai!: string;
 
+  @Column({ name: 'ma_chuyen_di', type: 'uuid' })
+  maChuyenDi!: string;
+
   @ManyToOne(() => ChuyenDi, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'ma_chuyen_di' })
   chuyenDi!: ChuyenDi;
+
+  @Column({ name: 'ma_nguoi_gui', type: 'uuid' })
+  maNguoiGui!: string;
+
+  @ManyToOne(() => NguoiDung)
+  @JoinColumn({ name: 'ma_nguoi_gui' })
+  nguoiGui!: NguoiDung;
+
+  @Column({ name: 'ma_nguoi_xu_ly', type: 'uuid', nullable: true })
+  maNguoiXuLy?: string;
 
   @ManyToOne(() => NguoiDung, { nullable: true })
   @JoinColumn({ name: 'ma_nguoi_xu_ly' })
