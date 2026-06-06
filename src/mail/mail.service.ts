@@ -39,15 +39,7 @@ export class MailService {
     await this.mailerService.sendMail({
       to: mailData.to,
       subject: emailConfirmTitle,
-      templatePath: path.join(
-        this.configService.getOrThrow('app.workingDirectory', {
-          infer: true,
-        }),
-        'src',
-        'mail',
-        'mail-templates',
-        'activation.hbs',
-      ),
+      templatePath: path.join(__dirname, 'mail-templates', 'activation.hbs'),
       context: {
         title: emailConfirmTitle,
         url: url.toString(),
@@ -78,11 +70,7 @@ export class MailService {
       to: mailData.to,
       subject: resetPasswordTitle,
       templatePath: path.join(
-        this.configService.getOrThrow('app.workingDirectory', {
-          infer: true,
-        }),
-        'src',
-        'mail',
+        __dirname,
         'mail-templates',
         'reset-password.hbs',
       ),
@@ -123,11 +111,7 @@ export class MailService {
       to: mailData.to,
       subject: emailConfirmTitle,
       templatePath: path.join(
-        this.configService.getOrThrow('app.workingDirectory', {
-          infer: true,
-        }),
-        'src',
-        'mail',
+        __dirname,
         'mail-templates',
         'confirm-new-email.hbs',
       ),

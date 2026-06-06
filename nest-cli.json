@@ -3,6 +3,16 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "assets": [{ "include": "i18n/**/*", "watchAssets": true }]
+    "assets": [
+      {
+        "include": "i18n/**/*",
+        "outDir": "dist"
+      },
+      {
+        "include": "mail/mail-templates/**/*",
+        "outDir": "dist"
+      }
+    ],
+    "watchAssets": true
   }
 }
